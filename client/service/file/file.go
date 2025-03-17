@@ -1,8 +1,8 @@
 package file
 
 import (
-	"Spark/client/common"
-	"Spark/client/config"
+	"FeArKit/client/common"
+	"FeArKit/client/config"
 	"archive/zip"
 	"errors"
 	"github.com/imroc/req/v3"

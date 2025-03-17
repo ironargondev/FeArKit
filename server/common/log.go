@@ -1,9 +1,9 @@
 package common
 
 import (
-	"Spark/server/config"
-	"Spark/utils"
-	"Spark/utils/melody"
+	"FeArKit/server/config"
+	"FeArKit/utils"
+	"FeArKit/utils/melody"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/kataras/golog"

@@ -1,36 +1,19 @@
-#### [English] [[中文]](./README.ZH.md) [[API Document]](./API.md) [[API文档]](./API.ZH.md)
+<h1 align="center">KnownMalwareProject</h1>
+
+Forked from **Spark** (https://github.com/XZB-1248/Spark), a free, safe, open-source, web-based, cross-platform and full-featured RAT (Remote Administration Tool)
+that allow you to control all your devices via browser anywhere.
+
+Modifications by Iron Argon Development
 
 ---
 
-<h1>Spark</h1>
+## Disclaimer
 
-**[Spark](https://github.com/XZB-1248/Spark)** is a free, safe, open-source, web-based, cross-platform, and full-featured RAT (Remote Administration Tool) that allows you to control all your devices via browser anywhere.
-
-✅ **No data collection**: Spark does not collect any user information.  
-✅ **No auto-updates**: The server will not update itself.  
-✅ **Direct communication**: Clients communicate exclusively with your server.
-
----
-
-
-
-| ![GitHub repo size](https://img.shields.io/github/repo-size/XZB-1248/Spark?style=flat-square) | ![GitHub issues](https://img.shields.io/github/issues/XZB-1248/Spark?style=flat-square) | ![GitHub closed issues](https://img.shields.io/github/issues-closed/XZB-1248/Spark?style=flat-square) |
-|-----------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
-
-| [![GitHub downloads](https://img.shields.io/github/downloads/XZB-1248/Spark/total?style=flat-square)](https://github.com/XZB-1248/Spark/releases) | [![GitHub release (latest by date)](https://img.shields.io/github/downloads/XZB-1248/Spark/latest/total?style=flat-square)](https://github.com/XZB-1248/Spark/releases/latest) |
-|---------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-
----
-
-## ⚠️ Disclaimer
-
-**THIS PROJECT, ITS SOURCE CODE, AND RELEASES SHOULD ONLY BE USED FOR EDUCATIONAL PURPOSES.**
-
-❌ **Illegal usage is strictly prohibited.**  
-❌ **Authors and developers are not responsible for any misuse.**  
-✅ **Use it at your own risk.**
-
-If you find security vulnerabilities, **do not open an issue**. Contact me immediately via [email](mailto:i@1248.ink).
+**THIS PROJECT, ITS SOURCE CODE, AND ITS RELEASES SHOULD ONLY BE USED FOR EDUCATIONAL PURPOSES. THE PURPOSE OF THIS PROJECT IS TO TRAIN THREAT HUNTERS, REVERSE ENGINEERS AND CREATE AV SIGNATURES**
+<br />
+**YOU SHALL USE THIS PROJECT AT YOUR OWN RISK.**
+<br />
+**THE AUTHORS AND DEVELOPERS ARE NOT RESPONSIBLE FOR ANY DAMAGE CAUSED BY YOUR MISUSE OF THIS PROJECT.**
 
 ---
 
@@ -38,7 +21,7 @@ If you find security vulnerabilities, **do not open an issue**. Contact me immed
 
 ### Binary Execution
 
-1. Download the executable from the [releases](https://github.com/XZB-1248/Spark/releases) page.
+1. Download the executable from the [releases](https://github.com/ironargondev/FeArKit/releases) page.
 2. Follow the [Configuration](#configuration) instructions.
 3. Run the executable and access the web interface at `http://IP:Port`.
 4. Generate a client and run it on the target device.
@@ -55,7 +38,7 @@ The configuration file `config.json` should be in the same directory as the exec
 ```json
 {
     "listen": ":8000",
-    "salt": "123456abcdef123456", 
+    "salt": "123456abcdef123456",
     "auth": {
         "username": "password"
     },
@@ -107,18 +90,6 @@ The configuration file `config.json` should be in the same directory as the exec
 
 ---
 
-## 📸 Screenshots
-
-![overview](./docs/overview.png)  
-![terminal](./docs/terminal.png)  
-![desktop](./docs/desktop.png)  
-![proc_mgr](./docs/procmgr.png)  
-![explorer](./docs/explorer.png)  
-![overview.cpu](./docs/overview.cpu.png)  
-![explorer.editor](./docs/explorer.editor.png)
-
----
-
 ## 🔧 Development
 
 ### Components
@@ -133,8 +104,8 @@ For OS support beyond Linux and Windows, additional C compilers may be required.
 
 ```bash
 # Clone the repository
-git clone https://github.com/XZB-1248/Spark
-cd ./Spark
+git clone https://github.com/ironargondev/FeArKit
+cd ./FeArKit
 
 # Build the front-end
 cd ./web
@@ -144,28 +115,21 @@ npm run build-prod
 # Embed static resources
 cd ..
 go install github.com/rakyll/statik
-statik -m -src="./web/dist" -f -dest="./server/embed" -p web -ns web
+~/go/bin/statik -m -src="./web/dist" -f -dest="./server/embed" -p web -ns web
 
 # Build the client
-mkdir ./built
+mkdir ./build
 go mod tidy
 go mod download
 ./scripts/build.client.sh
-
 # Build the server
-mkdir ./releases
 ./scripts/build.server.sh
 ```
-
-## Custom Features
-
-If you need to customize some features, please contact me via [**i@1248.ink**](mailto:i@1248.ink).
-
 ---
 
 ## Dependencies
 
-Spark contains many third-party open-source projects.
+FeArKit contains many third-party open-source projects.
 
 Lists of dependencies can be found at `go.mod` and `package.json`.
 
@@ -203,13 +167,6 @@ Some major dependencies are listed below.
 
 * [natpass](https://github.com/lwch/natpass) (MIT License)
 * Image difference algorithm inspired by natpass.
-
----
-
-### Stargazers over time
-
-[![Stargazers over time](https://starchart.cc/XZB-1248/Spark.svg)](https://starchart.cc/XZB-1248/Spark)
-
 
 ---
 

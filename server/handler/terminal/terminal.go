@@ -1,11 +1,11 @@
 package terminal
 
 import (
-	"Spark/modules"
-	"Spark/server/common"
-	"Spark/server/handler/utility"
-	"Spark/utils"
-	"Spark/utils/melody"
+	"FeArKit/modules"
+	"FeArKit/server/common"
+	"FeArKit/server/handler/utility"
+	"FeArKit/utils"
+	"FeArKit/utils/melody"
 	"encoding/hex"
 	"github.com/gin-gonic/gin"
 	"net/http"

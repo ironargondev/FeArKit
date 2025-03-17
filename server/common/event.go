@@ -1,9 +1,9 @@
 package common
 
 import (
-	"Spark/modules"
-	"Spark/utils/cmap"
-	"Spark/utils/melody"
+	"FeArKit/modules"
+	"FeArKit/utils/cmap"
+	"FeArKit/utils/melody"
 	"time"
 )
 

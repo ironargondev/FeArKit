@@ -1,7 +1,7 @@
 package config
 
 import (
-	"Spark/utils"
+	"FeArKit/utils"
 	"bytes"
 	"flag"
 	"github.com/kataras/golog"

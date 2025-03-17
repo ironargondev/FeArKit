@@ -1,10 +1,10 @@
 package generate
 
 import (
-	"Spark/modules"
-	"Spark/server/common"
-	"Spark/server/config"
-	"Spark/utils"
+	"FeArKit/modules"
+	"FeArKit/server/common"
+	"FeArKit/server/config"
+	"FeArKit/utils"
 	"bytes"
 	"encoding/hex"
 	"errors"

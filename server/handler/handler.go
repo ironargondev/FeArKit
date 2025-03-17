@@ -1,14 +1,14 @@
 package handler
 
 import (
-	"Spark/server/handler/bridge"
-	"Spark/server/handler/desktop"
-	"Spark/server/handler/file"
-	"Spark/server/handler/generate"
-	"Spark/server/handler/process"
-	"Spark/server/handler/screenshot"
-	"Spark/server/handler/terminal"
-	"Spark/server/handler/utility"
+	"FeArKit/server/handler/bridge"
+	"FeArKit/server/handler/desktop"
+	"FeArKit/server/handler/file"
+	"FeArKit/server/handler/generate"
+	"FeArKit/server/handler/process"
+	"FeArKit/server/handler/screenshot"
+	"FeArKit/server/handler/terminal"
+	"FeArKit/server/handler/utility"
 	"github.com/gin-gonic/gin"
 )
 

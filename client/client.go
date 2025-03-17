@@ -1,9 +1,9 @@
 package main
 
 import (
-	"Spark/client/config"
-	"Spark/client/core"
-	"Spark/utils"
+	"FeArKit/client/config"
+	"FeArKit/client/core"
+	"FeArKit/utils"
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"

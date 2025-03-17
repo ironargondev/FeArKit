@@ -1,10 +1,10 @@
 package desktop
 
 import (
-	"Spark/client/common"
-	"Spark/modules"
-	"Spark/utils"
-	"Spark/utils/cmap"
+	"FeArKit/client/common"
+	"FeArKit/modules"
+	"FeArKit/utils"
+	"FeArKit/utils/cmap"
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"

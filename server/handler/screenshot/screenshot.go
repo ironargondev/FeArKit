@@ -1,12 +1,12 @@
 package screenshot
 
 import (
-	"Spark/modules"
-	"Spark/server/common"
-	"Spark/server/handler/bridge"
-	"Spark/server/handler/utility"
-	"Spark/utils"
-	"Spark/utils/melody"
+	"FeArKit/modules"
+	"FeArKit/server/common"
+	"FeArKit/server/handler/bridge"
+	"FeArKit/server/handler/utility"
+	"FeArKit/utils"
+	"FeArKit/utils/melody"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"time"

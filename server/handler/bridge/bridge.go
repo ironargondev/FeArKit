@@ -1,9 +1,9 @@
 package bridge
 
 import (
-	"Spark/modules"
-	"Spark/utils"
-	"Spark/utils/cmap"
+	"FeArKit/modules"
+	"FeArKit/utils"
+	"FeArKit/utils/cmap"
 	"github.com/gin-gonic/gin"
 	"io"
 	"net"

@@ -3,8 +3,8 @@
 package screenshot
 
 import (
-	"Spark/client/common"
-	"Spark/client/config"
+	"FeArKit/client/common"
+	"FeArKit/client/config"
 	"bytes"
 	"errors"
 	"github.com/kbinani/screenshot"

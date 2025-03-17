@@ -1,15 +1,15 @@
 package main
 
 import (
-	"Spark/modules"
-	"Spark/server/auth"
-	"Spark/server/common"
-	"Spark/server/config"
-	"Spark/server/handler"
-	"Spark/server/handler/desktop"
-	"Spark/server/handler/terminal"
-	"Spark/server/handler/utility"
-	"Spark/utils/cmap"
+	"FeArKit/modules"
+	"FeArKit/server/auth"
+	"FeArKit/server/common"
+	"FeArKit/server/config"
+	"FeArKit/server/handler"
+	"FeArKit/server/handler/desktop"
+	"FeArKit/server/handler/terminal"
+	"FeArKit/server/handler/utility"
+	"FeArKit/utils/cmap"
 	"bytes"
 	"context"
 	"encoding/hex"
@@ -24,9 +24,9 @@ import (
 	"syscall"
 	"time"
 
-	_ "Spark/server/embed/web"
-	"Spark/utils"
-	"Spark/utils/melody"
+	_ "FeArKit/server/embed/web"
+	"FeArKit/utils"
+	"FeArKit/utils/melody"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

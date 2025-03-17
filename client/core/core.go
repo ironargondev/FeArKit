@@ -1,10 +1,10 @@
 package core
 
 import (
-	"Spark/client/common"
-	"Spark/client/config"
-	"Spark/modules"
-	"Spark/utils"
+	"FeArKit/client/common"
+	"FeArKit/client/config"
+	"FeArKit/modules"
+	"FeArKit/utils"
 	"encoding/hex"
 	"errors"
 	"net/http"

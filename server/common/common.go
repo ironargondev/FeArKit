@@ -1,10 +1,10 @@
 package common
 
 import (
-	"Spark/modules"
-	"Spark/utils"
-	"Spark/utils/cmap"
-	"Spark/utils/melody"
+	"FeArKit/modules"
+	"FeArKit/utils"
+	"FeArKit/utils/cmap"
+	"FeArKit/utils/melody"
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"

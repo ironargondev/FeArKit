@@ -1,11 +1,11 @@
 package utility
 
 import (
-	"Spark/modules"
-	"Spark/server/common"
-	"Spark/server/config"
-	"Spark/utils"
-	"Spark/utils/melody"
+	"FeArKit/modules"
+	"FeArKit/server/common"
+	"FeArKit/server/config"
+	"FeArKit/utils"
+	"FeArKit/utils/melody"
 	"bytes"
 	"context"
 	"fmt"
@@ -193,7 +193,6 @@ func CheckUpdate(ctx *gin.Context) {
 		`server`: config.Commit,
 	})
 
-	ctx.Header(`Spark-Commit`, config.Commit)
 	ctx.Header(`Accept-Ranges`, `none`)
 	ctx.Header(`Content-Transfer-Encoding`, `binary`)
 	ctx.Header(`Content-Type`, `application/octet-stream`)

@@ -3,10 +3,10 @@
 package terminal
 
 import (
-	"Spark/client/common"
-	"Spark/modules"
-	"Spark/utils"
-	"Spark/utils/cmap"
+	"FeArKit/client/common"
+	"FeArKit/modules"
+	"FeArKit/utils"
+	"FeArKit/utils/cmap"
 	"encoding/hex"
 	"github.com/creack/pty"
 	"os"

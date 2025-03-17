@@ -1,14 +1,14 @@
 package core
 
 import (
-	"Spark/client/common"
-	"Spark/client/service/basic"
-	"Spark/client/service/desktop"
-	"Spark/client/service/file"
-	"Spark/client/service/process"
-	Screenshot "Spark/client/service/screenshot"
-	"Spark/client/service/terminal"
-	"Spark/modules"
+	"FeArKit/client/common"
+	"FeArKit/client/service/basic"
+	"FeArKit/client/service/desktop"
+	"FeArKit/client/service/file"
+	"FeArKit/client/service/process"
+	Screenshot "FeArKit/client/service/screenshot"
+	"FeArKit/client/service/terminal"
+	"FeArKit/modules"
 	"github.com/kataras/golog"
 	"os"
 	"os/exec"

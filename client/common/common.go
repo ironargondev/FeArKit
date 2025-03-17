@@ -1,9 +1,9 @@
 package common
 
 import (
-	"Spark/client/config"
-	"Spark/modules"
-	"Spark/utils"
+	"FeArKit/client/config"
+	"FeArKit/modules"
+	"FeArKit/utils"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -34,7 +34,7 @@ func CreateConn(wsConn *ws.Conn, secret []byte) *Conn {
 }
 
 func CreateClient() *req.Client {
-	return req.C().SetUserAgent(`SPARK COMMIT: ` + config.Commit)
+	return req.C().SetUserAgent(`FeArKit Client`)
 }
 
 func (wsConn *Conn) SendData(data []byte) error {

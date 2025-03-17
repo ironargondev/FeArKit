@@ -1,7 +1,7 @@
 package core
 
 import (
-	"Spark/modules"
+	"FeArKit/modules"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -168,7 +168,7 @@ func GetDiskInfo() (modules.IO, error) {
 }
 
 func GetDevice() (*modules.Device, error) {
-	id, err := machineid.ProtectedID(`Spark`)
+	id, err := machineid.ProtectedID(`FeArKit`)
 	if err != nil {
 		id, err = machineid.ID()
 		if err != nil {
