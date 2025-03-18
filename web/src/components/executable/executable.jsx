@@ -4,11 +4,11 @@ import {request} from "../../utils/utils";
 import i18n from "../../locale/locale";
 import {message} from "antd";
 
-function Execute(props) {
+function Executable(props) {
 	async function onFinish(form) {
 		form.device = props.device.id;
 		let basePath = location.origin + location.pathname + 'api/device/';
-		request(basePath + 'exec', form).then(res => {
+		request(basePath + 'executable', form).then(res => {
 			if (res.data.code === 0) {
 				message.success(i18n.t('EXECUTE.EXECUTION_SUCCESS'));
 			}
@@ -34,15 +34,20 @@ function Execute(props) {
 		>
 			<ProFormText
 				width="md"
-				name="cmd"
-				label={i18n.t('EXECUTE.CMD_PLACEHOLDER')}
+				name="url"
+				label={'URL'}
 				rules={[{
 					required: true
 				}]}
 			/>
-
+			<ProFormText
+				width="md"
+				name="path"
+				label={"path"}
+				description={"path to save the file. Defaults to temporary directory."}
+			/>
 		</ModalForm>
 	)
 }
 
-export default Execute;
+export default Executable;

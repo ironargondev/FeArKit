@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build !windows && !freebsd
 // +build !windows
 
 package desktop

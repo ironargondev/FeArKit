@@ -50,6 +50,42 @@ function tsToTime(ts) {
 	return `${String(hours) + i18n.t('COMMON.HOURS') + ' ' + String(minutes) + i18n.t('COMMON.MINUTES')}`;
 }
 
+function renderUnixEpochToTime(epoch) {
+	if (typeof epoch !== 'number' || isNaN(epoch)) {
+		return 'Invalid timestamp';
+	}
+	// Convert seconds to milliseconds if needed
+	if (epoch < 1e12) {
+		epoch *= 1000;
+	}
+	const date = new Date(epoch);
+	return date.toISOString();
+}
+
+function renderUnixEpochToHumanReadable(epoch) {
+	// Use current time if no epoch is provided
+	if (epoch === undefined) {
+		epoch = Date.now();
+	}
+	if (typeof epoch !== 'number' || isNaN(epoch)) {
+		return 'Invalid timestamp';
+	}
+	// Convert seconds to milliseconds if needed
+	if (epoch < 1e12) {
+		epoch *= 1000;
+	}
+	const now = Date.now();
+	const diff = epoch - now;
+	const absDiff = Math.abs(diff);
+
+	const hours = Math.floor(absDiff / 3600000);
+	const minutes = Math.floor((absDiff % 3600000) / 60000);
+
+	return `${hours}h ${minutes}m`;
+}
+
+
+
 function getBaseURL(ws, suffix) {
 	if (location.protocol === 'https:') {
 		let scheme = ws ? 'wss' : 'https';
@@ -168,4 +204,4 @@ function decrypt(data, secret) {
 	return ua2str(data);
 }
 
-export {post, request, waitTime, formatSize, tsToTime, getBaseURL, genRandHex, translate, preventClose, catchBlobReq, hex2ua, ua2hex, str2ua, ua2str, hex2str, str2hex, encrypt, decrypt, orderCompare};
+export { post, request, waitTime, formatSize, tsToTime, renderUnixEpochToTime, renderUnixEpochToHumanReadable, getBaseURL, genRandHex, translate, preventClose, catchBlobReq, hex2ua, ua2hex, str2ua, ua2str, hex2str, str2hex, encrypt, decrypt, orderCompare};

@@ -42,17 +42,26 @@ func main() {
 		return
 	}
 	gin.SetMode(gin.ReleaseMode)
-	app := gin.New()
-	app.Use(gin.Recovery())
+	appServer := gin.New()
+	appServer.Use(gin.Recovery())
 	{
 		handler.AuthHandler = checkAuth()
-		handler.InitRouter(app.Group(`/api`))
-		app.Any(`/ws`, wsHandshake)
-		app.NoRoute(handler.AuthHandler, func(ctx *gin.Context) {
+		handler.InitRouter(appServer.Group(`/api`))
+		appServer.Any(`/ws`, wsHandshake)
+		appServer.NoRoute(handler.AuthHandler, func(ctx *gin.Context) {
 			if !serveGzip(ctx, webFS) && !checkCache(ctx, webFS) {
 				http.FileServer(webFS).ServeHTTP(ctx.Writer, ctx.Request)
 			}
 		})
+	}
+
+	appListener := gin.New()
+	appListener.Use(gin.Recovery())
+	{
+		handler.AuthHandler = checkAuth()
+		handler.InitRouter(appListener.Group(`/api`))
+		appListener.Any(`/ws`, wsHandshake)
+
 	}
 
 	common.Melody.Config.MaxMessageSize = common.MaxMessageSize
@@ -62,9 +71,10 @@ func main() {
 	common.Melody.HandleDisconnect(wsOnDisconnect)
 	go wsHealthCheck(common.Melody)
 
+
 	srv := &http.Server{
-		Addr:    config.Config.Listen,
-		Handler: app,
+		Addr:    config.Config.BackendListen,
+		Handler: appServer,
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
 			ctx = context.WithValue(ctx, `Conn`, c)
 			ctx = context.WithValue(ctx, `ClientIP`, common.GetAddrIP(c.RemoteAddr()))
@@ -73,15 +83,57 @@ func main() {
 	}
 	{
 		go func() {
-			err = srv.ListenAndServe()
+			var serveErr error
+			if config.Config.BackendTLSCert != "" && config.Config.BackendTLSKey != "" {
+				serveErr = srv.ListenAndServeTLS(config.Config.BackendTLSCert, config.Config.BackendTLSKey)
+			} else {
+				serveErr = srv.ListenAndServe()
+			}
+			if serveErr != nil {
+				common.Fatal(nil, `SERVER_INIT`, `fail`, serveErr.Error(), nil)
+			}
 		}()
-		if err != nil {
-			common.Fatal(nil, `SERVICE_INIT`, `fail`, err.Error(), nil)
-		} else {
-			common.Info(nil, `SERVICE_INIT`, ``, ``, map[string]any{
-				`listen`: config.Config.Listen,
-			})
+
+		proto := "http"
+		if config.Config.BackendTLSCert != "" && config.Config.BackendTLSKey != "" {
+			proto = "https"
 		}
+		common.Info(nil, `SERVER_INIT`, ``, ``, map[string]any{
+			`listen`:   config.Config.BackendListen,
+			`protocol`: proto,
+		})
+	}
+
+	// Second server for appListener
+	srvListener := &http.Server{
+		Addr:    config.Config.ClientListen, // change to your desired address
+		Handler: appListener,
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			ctx = context.WithValue(ctx, `Conn`, c)
+			ctx = context.WithValue(ctx, `ClientIP`, common.GetAddrIP(c.RemoteAddr()))
+			return ctx
+		},
+	}
+	{
+		go func() {
+			var clientErr error
+			if config.Config.ClientTLSCert != "" && config.Config.ClientTLSKey != "" {
+				clientErr = srvListener.ListenAndServeTLS(config.Config.ClientTLSCert, config.Config.ClientTLSKey)
+			} else {
+				clientErr = srvListener.ListenAndServe()
+			}
+			if clientErr != nil {
+				common.Fatal(nil, `LISTENER_INIT`, `fail`, err.Error(), nil)
+			}
+		}()
+		proto := "http"
+		if config.Config.ClientTLSCert != "" && config.Config.ClientTLSKey != "" {
+			proto = "https"
+		}
+		common.Info(nil, `LISTENER_INIT`, ``, ``, map[string]any{
+			`listen`: config.Config.ClientListen,
+			`protocol`: proto,
+		})
 	}
 	quit := make(chan os.Signal, 3)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -156,7 +208,6 @@ func wsOnMessage(session *melody.Session, _ []byte) {
 
 func wsOnMessageBinary(session *melody.Session, data []byte) {
 	var pack modules.Packet
-
 	dataLen := len(data)
 	if dataLen > 24 {
 		if service, op, isBinary := utils.CheckBinaryPack(data); isBinary {

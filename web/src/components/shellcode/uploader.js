@@ -3,6 +3,7 @@ import Qs from "qs";
 import {formatSize, preventClose} from "../../utils/utils";
 import axios from "axios";
 import {message, Modal, Progress, Typography} from "antd";
+import { ModalForm, ProFormText, ProFormSwitch } from '@ant-design/pro-form';
 import i18n from "../../locale/locale";
 import DraggableModal from "../modal";
 
@@ -11,6 +12,7 @@ function FileUploader(props) {
 	const [open, setOpen] = useState(!!props.file);
 	const [percent, setPercent] = useState(0);
 	const [status, setStatus] = useState(0);
+	const [path, setPath] = useState("");
 	// 0: ready, 1: uploading, 2: success, 3: fail, 4: cancel
 
 	useEffect(() => {
@@ -21,6 +23,7 @@ function FileUploader(props) {
 		}
 	}, [props.file]);
 
+
 	function onConfirm() {
 		if (status !== 0) {
 			onCancel();
@@ -28,7 +31,7 @@ function FileUploader(props) {
 		}
 		const params = Qs.stringify({
 			device: props.device.id,
-			path: props.path,
+			path: path,
 			file: props.file.name
 		});
 		let uploadStatus = 1;
@@ -36,7 +39,7 @@ function FileUploader(props) {
 		window.onbeforeunload = preventClose;
 		abortController = new AbortController();
 		axios.post(
-			'/api/device/file/upload?' + params,
+			props.uploaderEndpoint + params,
 			props.file,
 			{
 				headers: {
@@ -140,6 +143,19 @@ function FileUploader(props) {
 			onOk={onConfirm}
 			width={550}
 		>
+			<ProFormText
+				width="md"
+				name="path"
+				label={"Target Image (when supplied executes as remote thread)"}
+				fieldProps={{
+					onBlur: (e) => {
+						setPath(e.target.value);
+					}
+				}}
+				rules={[{
+					required: false
+				}]}
+			/>
 			<div>
                 <span
 					style={{

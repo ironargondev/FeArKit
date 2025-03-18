@@ -79,12 +79,12 @@ The configuration file `config.json` should be in the same directory as the exec
 | Screenshot        | ✔       | ✔     | ✔     |
 | OS Info           | ✔       | ✔     | ✔     |
 | Remote Terminal   | ✔       | ✔     | ✔     |
+| Shellcode inject  | ✔       | ✔     | x     |
+| Download and exec | ✔       | ✔     | x     |
+| Keylogger         | ✔       | x     | x     |
 | * Shutdown        | ✔       | ✔     | ✔     |
 | * Reboot          | ✔       | ✔     | ✔     |
-| * Log Off         | ✔       | ❌     | ✔     |
-| * Sleep           | ✔       | ❌     | ✔     |
-| * Hibernate       | ✔       | ❌     | ❌     |
-| * Lock Screen     | ✔       | ❌     | ❌     |
+
 
 🚨 **Functions marked with * may require administrator/root privileges.**
 

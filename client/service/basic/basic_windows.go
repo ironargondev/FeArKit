@@ -83,49 +83,6 @@ func privilege() error {
 	return nil
 }
 
-func Lock() error {
-	dll := syscall.MustLoadDLL(`user32`)
-	_, _, err := dll.MustFindProc(`LockWorkStation`).Call()
-	dll.Release()
-	if err == syscall.Errno(0) {
-		return nil
-	}
-	return err
-}
-
-func Logoff() error {
-	const EWX_LOGOFF = 0x00000000
-	dll := syscall.MustLoadDLL(`user32`)
-	_, _, err := dll.MustFindProc(`ExitWindowsEx`).Call(EWX_LOGOFF, 0x0)
-	dll.Release()
-	if err == syscall.Errno(0) {
-		return nil
-	}
-	return err
-}
-
-func Hibernate() error {
-	const HIBERNATE = 0x00000001
-	dll := syscall.MustLoadDLL(`powrprof`)
-	_, _, err := dll.MustFindProc(`SetSuspendState`).Call(HIBERNATE, 0x0, 0x1)
-	dll.Release()
-	if err == syscall.Errno(0) {
-		return nil
-	}
-	return err
-}
-
-func Suspend() error {
-	const SUSPEND = 0x00000000
-	dll := syscall.MustLoadDLL(`powrprof`)
-	_, _, err := dll.MustFindProc(`SetSuspendState`).Call(SUSPEND, 0x0, 0x1)
-	dll.Release()
-	if err == syscall.Errno(0) {
-		return nil
-	}
-	return err
-}
-
 func Restart() error {
 	const EWX_REBOOT = 0x00000002
 	const EWX_FORCE = 0x00000004

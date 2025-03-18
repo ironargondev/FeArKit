@@ -39,7 +39,7 @@ function Generate(props) {
 		<ModalForm
 			modalProps={{
 				destroyOnClose: true,
-				maskClosable: false,
+				maskClosable: true,
 			}}
 			initialValues={initValues}
 			onFinish={onFinish}

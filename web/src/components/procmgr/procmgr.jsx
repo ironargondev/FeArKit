@@ -93,7 +93,7 @@ function ProcessMgr(props) {
 	return (
 		<DraggableModal
 			draggable={true}
-			maskClosable={false}
+			maskClosable={true}
 			destroyOnClose={true}
 			modalTitle={i18n.t('PROCMGR.TITLE')}
 			footer={null}

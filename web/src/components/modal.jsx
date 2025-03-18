@@ -1,6 +1,7 @@
 import { Modal } from "antd";
 import React, { useRef, useState } from "react";
 import Draggable from "react-draggable";
+import i18n from "../locale/locale";
 
 function DraggableModal(props) {
 	const [disabled, setDisabled] = useState(true);
@@ -29,6 +30,8 @@ function DraggableModal(props) {
 
 	return (
 		<Modal
+			okText="Yes"
+			cancelText="No"
 			title={
 				<div
 					style={{
