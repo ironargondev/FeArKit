@@ -9,6 +9,8 @@ const CompressionPlugin = require("compression-webpack-plugin");
 
 module.exports = (env, args) => {
     let mode = args.mode;
+
+
     return {
         entry: path.join(__dirname, 'src/index.jsx'),
         output: {
@@ -163,16 +165,18 @@ module.exports = (env, args) => {
             hot: true,
             proxy: {
                 '/api/': {
-                    target: 'http://localhost:8001/',
+                    target: 'https://localhost:9191/',
                     secure: false
                 },
                 '/api/device/desktop': {
-                    target: 'ws://localhost:8001/',
-                    ws: true
+                    target: 'wss://localhost:9191/',
+                    ws: true,
+                    secure: false
                 },
                 '/api/device/terminal': {
-                    target: 'ws://localhost:8001/',
-                    ws: true
+                    target: 'wss://localhost:9191/',
+                    ws: true,
+                    secure: false
                 },
             }
         }
