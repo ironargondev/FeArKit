@@ -2,28 +2,28 @@ export GO111MODULE=auto
 export COMMIT=`git rev-parse HEAD`
 
 export GOOS=linux
-export GOARCH=arm
-go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/linux_arm FeArKit/client
-export GOARCH=386
-go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/linux_i386 FeArKit/client
-export GOARCH=arm64
-go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/linux_arm64 FeArKit/client
+#export GOARCH=arm
+#go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/linux_arm FeArKit/client
+#export GOARCH=386
+#go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/linux_i386 FeArKit/client
+#export GOARCH=arm64
+#go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/linux_arm64 FeArKit/client
 export GOARCH=amd64
-go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/linux_amd64 FeArKit/client
+go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/client_linux_amd64.elf FeArKit/client
 
 export GOOS=windows
-export GOARCH=386
-go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/windows_i386 FeArKit/client
-export GOARCH=arm64
-go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/windows_arm64 FeArKit/client
+#export GOARCH=386
+#go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/windows_i386 FeArKit/client
+#export GOARCH=arm64
+#go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/windows_arm64 FeArKit/client
 export GOARCH=amd64
-go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/windows_amd64 FeArKit/client
+go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/client_win32nt_amd64.exe FeArKit/client
 
 export GOOS=freebsd
-export GOARCH=386
-go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/freebsd_i386 FeArKit/client
+#export GOARCH=386
+#go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/freebsd_i386 FeArKit/client
 export GOARCH=amd64
-go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/freebsd_amd64 FeArKit/client
+go build -ldflags "-s -w -X 'FeArKit/client/config.Commit=$COMMIT'" -o ./build/client/client_freebsd_amd64.elf FeArKit/client
 
 # export CGO_ENABLED=1
 # export GOOS=android
