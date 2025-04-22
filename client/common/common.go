@@ -63,7 +63,7 @@ func (wsConn *Conn) SendPack(pack any) error {
 	if err != nil {
 		return err
 	}
-	golog.Infof("Pack JSON data: %s", string(data))
+	golog.Debugf("Pack JSON data: %s", string(data))
 	data, err = utils.Encrypt(data, wsConn.secret)
 	if err != nil {
 		return err

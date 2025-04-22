@@ -4,7 +4,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"bytes"
 	"encoding/hex"
@@ -44,10 +43,17 @@ func main() {
 	flag.StringVar(&inFile, "in", "", "path to the input file")
 	flag.StringVar(&outFile, "out", "", "path to the output file")
 	flag.BoolVar(&stdOut, "stdout", false, "Print hex encoded config")
-	flag.BoolVar(&debug, "debug", false, "Print config before encrypting")
+	flag.BoolVar(&debug, "debug", false, "Print debug information")
 	flag.StringVar(&saltString, "salt", "", "salt of server")
-	flag.StringVar(&configPath, "config", "config.json", "config file path")
+	flag.StringVar(&configPath, "config", "", "config file path")
 	flag.Parse()
+
+	// Debug output to help troubleshoot
+	if debug {
+		fmt.Println("Command line arguments:", os.Args)
+		fmt.Printf("Parsed flags: host=%s, port=%d, path=%s, secure=%v, in=%s, out=%s, salt=%s, configpath=%s\n",
+			hostFlag, portFlag, pathFlag, secureFlag, inFile, outFile, saltString, configPath)
+	}
 
 	if hostFlag == "" || portFlag == 0 {
 		flag.Usage()
@@ -57,24 +63,25 @@ func main() {
 	if len(configPath) > 0 {
 		configData, err := os.ReadFile(configPath)
 		if err != nil {
-			fmt.Errorf("failed to read config file: %v", err)
-			return
+			fmt.Printf("failed to read config file: %v", err)
+			os.Exit(1)
 		}
 		var cfg map[string]interface{}
 		decoder := json.NewDecoder(bytes.NewReader(configData))
 		if err := decoder.Decode(&cfg); err != nil {
-			log.Fatalf("failed to unmarshal config file: %v", err)
-			return
+			fmt.Printf("failed to unmarshal config file: %v", err)
+			os.Exit(1)
 		}
 		salt, ok := cfg["salt"].(string)
 		if !ok {
-			log.Fatalf("failed to get salt from config file")
-			return
+			fmt.Printf("failed to get salt from config file")
+			os.Exit(1)
 		}
 		saltString = salt
 	} else {
 		if saltString == "" {
-			log.Fatalf("salt is required")
+			fmt.Printf("salt is required")
+			os.Exit(1)
 		}
 	}
 
@@ -88,14 +95,16 @@ func main() {
 		var err error
 		input, err = os.Open(inFile)
 		if err != nil {
-			log.Fatalf("failed to open input file: %v", err)
+			fmt.Printf("failed to open input file: %v", err)
+			os.Exit(1)
 		}
 		defer input.Close()
 
 		// Create the output file.
-		output, err = os.Create(outFile)
+		output, err = os.OpenFile(outFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
-			log.Fatalf("failed to create output file: %v", err)
+			fmt.Printf("failed to create output file: %v", err)
+			os.Exit(1)
 		}
 		defer output.Close()
 	}
@@ -103,7 +112,8 @@ func main() {
 	clientUUID := utils.GetUUID()
 	clientKey, err := encAES(clientUUID, []byte(saltBytes))
 	if err != nil {
-		log.Fatalf("failed to generate client key: %v", err)
+		fmt.Printf("failed to generate client key: %v", err)
+		os.Exit(1)
 	}
 	clientConfigJson := clientCfg{
 		Secure: secureFlag,
@@ -118,7 +128,8 @@ func main() {
 	}
 	cfgBytes, err := genConfig(clientConfigJson)
 	if err != nil {
-		log.Fatalf("failed to generate config: %v", err)
+		fmt.Printf("failed to generate config: %v", err)
+		os.Exit(1)
 	}
 	if stdOut {
 		// Print config buffer in \x encoded hex
@@ -134,18 +145,22 @@ func main() {
 	// Read the input file and replace the placeholder buffer with the generated configuration.
 	placeholder := bytes.Repeat([]byte{'\x19'}, 384)
 	var prevBuffer []byte
+	var templateFound = false
 	buf := make([]byte, 1024)
 	for {
 		n, readErr := input.Read(buf)
 		chunk := buf[:n]
 		tempBuffer := append(prevBuffer, chunk...)
 		if bytes.Index(tempBuffer, placeholder) > -1 {
+			fmt.Println("Found placeholder, replacing with config...")
 			tempBuffer = bytes.ReplaceAll(tempBuffer, placeholder, cfgBytes)
+			templateFound = true
 		}
 		// Write out complete data from previous iteration.
 		if len(tempBuffer) > len(prevBuffer) {
 			if _, err := output.Write(tempBuffer[:len(tempBuffer)-len(prevBuffer)]); err != nil {
-				log.Fatalf("failed to write to output: %v", err)
+				fmt.Printf("failed to write to output: %v", err)
+				os.Exit(1)
 			}
 		}
 		prevBuffer = tempBuffer[len(tempBuffer)-len(prevBuffer):]
@@ -156,8 +171,13 @@ func main() {
 	// Write any remaining data.
 	if len(prevBuffer) > 0 {
 		if _, err := output.Write(prevBuffer); err != nil {
-			log.Fatalf("failed to write remaining data: %v", err)
+			fmt.Printf("failed to write remaining data: %v", err)
+			os.Exit(1)
 		}
+	}
+	if !templateFound {
+		fmt.Println("No placeholder found in the input file.")
+		os.Exit(1)
 	}
 	fmt.Println("File has been patched successfully.")
 }

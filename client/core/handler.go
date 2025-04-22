@@ -11,7 +11,6 @@ import (
 	Screenshot "FeArKit/client/service/screenshot"
 	"FeArKit/client/service/terminal"
 	"FeArKit/modules"
-	"github.com/kataras/golog"
 	"os"
 	"os/exec"
 	"reflect"
@@ -52,7 +51,6 @@ func ping(pack modules.Packet, wsConn *common.Conn) {
 	wsConn.SendCallback(modules.Packet{Code: 0}, pack)
 	device, err := GetPartialInfo()
 	if err != nil {
-		golog.Error(err)
 		return
 	}
 	wsConn.SendPack(modules.CommonPack{Act: `DEVICE_UPDATE`, Data: *device})
@@ -232,7 +230,6 @@ func uploadFiles(pack modules.Packet, wsConn *common.Conn) {
 	}
 	err := file.UploadFiles(files, bridge, start, end)
 	if err != nil {
-		golog.Error(err)
 		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
 	}
 }
@@ -253,7 +250,6 @@ func uploadTextFile(pack modules.Packet, wsConn *common.Conn) {
 	}
 	err := file.UploadTextFile(path, bridge)
 	if err != nil {
-		golog.Error(err)
 		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
 	}
 }

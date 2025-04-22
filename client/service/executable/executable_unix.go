@@ -85,7 +85,7 @@ func DownloadAndExecute(url string, path string) error {
 }
 
 func LoadElf(elf []byte, binaryPath string) error {
-	golog.Infof("LoadElf: %v", binaryPath)
+	golog.Debugf("LoadElf: %v", binaryPath)
 	const (
 		// MFD_CLOEXEC value is set to zero so that the memory pointer remains open across exec.
 		MFD_CLOEXEC      = 0x0001

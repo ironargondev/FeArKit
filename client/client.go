@@ -24,8 +24,9 @@ const (
 
 func init() {
 	golog.SetTimeFormat(`2006/01/02 15:04:05`)
-	golog.SetLevel("critical")
-	golog.Debug("Initializing client...")
+	golog.SetLevel("disable")
+
+	golog.Info("Initializing client...")
 
 	ConfigBuffer := config.ConfigBuffer
 	if len(strings.Trim(ConfigBuffer, "\x19")) == 0 {
@@ -53,19 +54,19 @@ func init() {
 
 	// Print config buffer in \x encoded hex
 	var hexBuffer strings.Builder
-	for i := 0; i < len(config.ConfigBuffer); i++ {
-		hexBuffer.WriteString(fmt.Sprintf("\\x%02x", config.ConfigBuffer[i]))
+	for i := 0; i < len(ConfigBuffer); i++ {
+		hexBuffer.WriteString(fmt.Sprintf("\\x%02x", ConfigBuffer[i]))
 	}
 	golog.Debug("Config Buffer (hex):", hexBuffer.String())
 
 	// Convert first 2 bytes to int, which is the length of the encrypted config.
-	dataLen := int(big.NewInt(0).SetBytes([]byte(config.ConfigBuffer[:2])).Uint64())
-	if dataLen > len(config.ConfigBuffer)-2 {
+	dataLen := int(big.NewInt(0).SetBytes([]byte(ConfigBuffer[:2])).Uint64())
+	if dataLen > len(ConfigBuffer)-2 {
 		golog.Debug("Error: Invalid config length")
 		os.Exit(1)
 		return
 	}
-	cfgBytes := utils.StringToBytes(config.ConfigBuffer, 2, 2+dataLen)
+	cfgBytes := utils.StringToBytes(ConfigBuffer, 2, 2+dataLen)
 	cfgBytes, err := decrypt(cfgBytes[16:], cfgBytes[:16])
 	if err != nil {
 		golog.Debug("Error: Failed to decrypt config:", err)

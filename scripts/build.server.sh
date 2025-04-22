@@ -1,6 +1,15 @@
 export GO111MODULE=auto
 export COMMIT=`git rev-parse HEAD`
 
+# patch the web
+cd ./web && npm install && npm run build-prod
+
+cd .. && GOBIN=/usr/local/bin/ go install github.com/rakyll/statik
+
+/usr/local/bin/statik -m -src="./web/dist" -f -dest="./server/embed" -p web -ns web
+
+go mod tidy
+
 #export GOOS=darwin
 #export GOARCH=arm64
 #go build -ldflags "-s -w -X 'FeArKit/server/config.Commit=$COMMIT'" -tags=jsoniter -o ./build/server/server_darwin_arm64 FeArKit/server
