@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DraggableModal from "../modal";
 
 const Keylog = (props) => {
+    const hostname = props.device.hostname;
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -88,7 +89,7 @@ const Keylog = (props) => {
                 maskClosable: true,
             }}
             draggable={draggable}
-            modalTitle={'Keylog - layout: ' + getKeyboardLayout()}
+            modalTitle={'Keylog - layout: ' + getKeyboardLayout() + ' - ' + hostname}
             onVisibleChange={open => {
                 if (!open) props.onCancel();
             }}

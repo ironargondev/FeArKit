@@ -14,8 +14,10 @@ let ticker = 0;
 let frames = 0;
 let bytes = 0;
 let ticks = 0;
-let title = i18n.t('DESKTOP.TITLE');
 function ScreenModal(props) {
+	const hostname = props.device.hostname;
+	let title = i18n.t('DESKTOP.TITLE') +' - ' + hostname;
+
 	const [resolution, setResolution] = useState('0x0');
 	const [bandwidth, setBandwidth] = useState(0);
 	const [fps, setFps] = useState(0);

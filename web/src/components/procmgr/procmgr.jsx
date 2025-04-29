@@ -8,6 +8,7 @@ import DraggableModal from "../modal";
 import {ReloadOutlined} from "@ant-design/icons";
 
 function ProcessMgr(props) {
+	const hostname = props.device.hostname;
 	const [loading, setLoading] = useState(false);
 	const columns = [
 		{
@@ -95,7 +96,7 @@ function ProcessMgr(props) {
 			draggable={true}
 			maskClosable={true}
 			destroyOnClose={true}
-			modalTitle={i18n.t('PROCMGR.TITLE')}
+			modalTitle={i18n.t('PROCMGR.TITLE') + ' - ' + hostname}
 			footer={null}
 			width={500}
 			bodyStyle={{

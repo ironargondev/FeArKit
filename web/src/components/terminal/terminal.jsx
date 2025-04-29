@@ -32,6 +32,7 @@ let buffer = {content: '', output: ''};
 
 function TerminalModal(props) {
 	let os = props.device.os;
+	let hostname = props.device.hostname;
 	let extKeyRef = createRef();
 	let termRef = useCallback(e => {
 		if (e !== null) {
@@ -555,7 +556,7 @@ function TerminalModal(props) {
 		<DraggableModal
 			draggable={true}
 			maskClosable={false}
-			modalTitle={i18n.t('TERMINAL.TITLE')}
+			modalTitle={i18n.t('TERMINAL.TITLE') + ' - ' + hostname}
 			open={props.open}
 			onCancel={props.onCancel}
 			bodyStyle={{padding: 12}}

@@ -501,17 +501,7 @@ function overview(props) {
 					x: 'max-content',
 					scrollToFirstRowOnChange: true
 				}}
-				onChange={(pagination, filters, sorter) => {
-					if (sorter.field === 'lan' && sorter.order) {
-						setDataSource(prevData =>
-							[...prevData].sort((a, b) =>
-								sorter.order === 'ascend'
-									? a.lan.localeCompare(b.lan)
-									: b.lan.localeCompare(a.lan)
-							)
-						);
-					}
-				}}
+
 				rowKey='id'
 				search={false}
 				options={options}

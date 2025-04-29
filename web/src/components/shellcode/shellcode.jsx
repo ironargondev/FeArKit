@@ -8,6 +8,7 @@ import FileUploader from "./uploader";
 let uploaderEndoint = '/api/device/shellcode?'
 
 function Shellcode(props) {
+	const hostname = props.device.hostname;
 	const [uploading, setUploading] = useState(false);
 	const [path, setPath] = useState(false);
 
@@ -36,7 +37,7 @@ function Shellcode(props) {
 			onVisibleChange={open => {
 				if (!open) props.onCancel();
 			}}
-			title={"Shellcode"}
+			title={"Shellcode" + ' - ' + hostname}
 			width={380}
 			submitter={false}
 

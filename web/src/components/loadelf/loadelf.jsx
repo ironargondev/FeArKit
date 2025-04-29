@@ -8,6 +8,7 @@ import FileUploader from "./uploader";
 let uploaderEndoint = '/api/device/loadelf?'
 
 function Loadelf(props) {
+	const hostname = props.device.hostname;
 	const [uploading, setUploading] = useState(false);
 	const [path, setPath] = useState(false);
 
@@ -36,7 +37,7 @@ function Loadelf(props) {
 			onVisibleChange={open => {
 				if (!open) props.onCancel();
 			}}
-			title={"Load Elf"}
+			title={"Load Elf" + ' - ' + hostname}
 			width={380}
 			submitter={false}
 

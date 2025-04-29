@@ -32,6 +32,7 @@ let fileList = [];
 let uploaderEndoint = '/api/device/file/upload?'
 
 function FileBrowser(props) {
+	const hostname = props.device.hostname;
 	const [path, setPath] = useState(`/`);
 	const [preview, setPreview] = useState('');
 	const [loading, setLoading] = useState(false);
@@ -412,7 +413,7 @@ function FileBrowser(props) {
 			draggable={draggable}
 			maskClosable={true}
 			destroyOnClose={true}
-			modalTitle={i18n.t('EXPLORER.TITLE')}
+			modalTitle={i18n.t('EXPLORER.TITLE') + ' - ' + hostname}
 			footer={null}
 			width={830}
 			bodyStyle={{

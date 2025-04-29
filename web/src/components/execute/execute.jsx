@@ -5,6 +5,8 @@ import i18n from "../../locale/locale";
 import {message} from "antd";
 
 function Execute(props) {
+	const hostname = props.device.hostname;
+
 	async function onFinish(form) {
 		form.device = props.device.id;
 		let basePath = location.origin + location.pathname + 'api/device/';
@@ -21,7 +23,7 @@ function Execute(props) {
 				destroyOnClose: true,
 				maskClosable: true,
 			}}
-			title={i18n.t('EXECUTE.TITLE')}
+			title={i18n.t('EXECUTE.TITLE') + ' - ' + hostname}
 			width={380}
 			onFinish={onFinish}
 			onVisibleChange={open => {
