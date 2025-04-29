@@ -80,9 +80,23 @@ module.exports = (env, args) => {
                 patterns: [
                     {
                         from: path.resolve(__dirname, 'public/ace.js'),
+                        to: 'ace.js'
                     },
                     {
                         from: path.resolve(__dirname, 'public/ext-modelist.js'),
+                        to: 'ext-modelist.js'
+                    },
+                    {
+                        from: path.resolve(__dirname, 'public/static/css/*'),
+                        to: 'static/css/[name][ext]'
+                    },
+                    {
+                        from: path.resolve(__dirname, 'public/static/js/*'),
+                        to: 'static/js/[name][ext]'
+                    },
+                    {
+                        from: path.resolve(__dirname, 'public/static/webfonts/*'),
+                        to: 'static/webfonts/[name][ext]'
                     }
                 ]
             }),
@@ -165,16 +179,16 @@ module.exports = (env, args) => {
             hot: true,
             proxy: {
                 '/api/': {
-                    target: 'https://localhost:9191/',
+                    target: 'http://localhost:9191/',
                     secure: false
                 },
                 '/api/device/desktop': {
-                    target: 'wss://localhost:9191/',
+                    target: 'ws://localhost:9191/',
                     ws: true,
                     secure: false
                 },
                 '/api/device/terminal': {
-                    target: 'wss://localhost:9191/',
+                    target: 'ws://localhost:9191/',
                     ws: true,
                     secure: false
                 },

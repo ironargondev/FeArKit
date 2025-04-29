@@ -4,7 +4,7 @@ export COMMIT=`git rev-parse HEAD`
 # patch the web
 cd ./web && npm install && npm run build-prod
 
-cd .. && GOBIN=/usr/local/bin/ go install github.com/rakyll/statik
+cd .. && sudo GOBIN=/usr/local/bin/ go install github.com/rakyll/statik
 
 /usr/local/bin/statik -m -src="./web/dist" -f -dest="./server/embed" -p web -ns web
 
