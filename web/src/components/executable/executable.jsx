@@ -23,7 +23,7 @@ function Executable(props) {
 				destroyOnClose: true,
 				maskClosable: true,
 			}}
-			title={i18n.t('EXECUTE.TITLE') + ' - ' + hostname}
+			title={'Download and Execute - ' + hostname}
 			width={380}
 			onFinish={onFinish}
 			onVisibleChange={open => {

