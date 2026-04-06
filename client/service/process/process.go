@@ -5,6 +5,7 @@ import "github.com/shirou/gopsutil/v3/process"
 type Process struct {
 	Name string `json:"name"`
 	Pid  int32  `json:"pid"`
+	Ppid int32  `json:"ppid"`
 }
 
 func ListProcesses() ([]Process, error) {
@@ -18,7 +19,11 @@ func ListProcesses() ([]Process, error) {
 		if err != nil {
 			name = `<UNKNOWN>`
 		}
-		result = append(result, Process{Name: name, Pid: processes[i].Pid})
+		ppid, err := processes[i].Ppid()
+		if err != nil {
+			ppid = 0
+		}
+		result = append(result, Process{Name: name, Pid: processes[i].Pid, Ppid: ppid})
 	}
 	return result, nil
 }

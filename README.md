@@ -37,7 +37,8 @@ The configuration file `config.json` should be in the same directory as the exec
 
 ```json
 {
-    "listen": ":8000",
+    "backendlisten": ":9191",
+    "clientlisten": ":8000",
     "salt": "123456abcdef123456",
     "auth": {
         "username": "password"
@@ -46,12 +47,14 @@ The configuration file `config.json` should be in the same directory as the exec
         "level": "info",
         "path": "./logs",
         "days": 7
-    }
+    },
+    "noGenerate": false
 }
 ```
 
 ### Main Parameters:
-- **`listen`** (required): Format `IP:Port`.
+- **`backendlisten`** (required): Address for the web UI and API server. Format `IP:Port` (e.g. `:9191`).
+- **`clientlisten`** (required): Address for the C2 agent WebSocket listener. Format `IP:Port` (e.g. `:8000`).
 - **`salt`** (required): Max length 24 characters. After modification, all clients need to be regenerated.
 - **`auth`** (optional): Authentication credentials (`username:password`).
   - Hashed passwords are recommended (`$algorithm$hashed-password`).
@@ -60,6 +63,7 @@ The configuration file `config.json` should be in the same directory as the exec
   - `level`: `disable`, `fatal`, `error`, `warn`, `info`, `debug`.
   - `path`: Log directory (default: `./logs`).
   - `days`: Log retention days (default: `7`).
+- **`noGenerate`** (optional): Set to `true` to hide the Generate Client button in the web UI.
 
 ---
 
@@ -102,28 +106,31 @@ For OS support beyond Linux and Windows, additional C compilers may be required.
 
 ### Build Guide
 
+The frontend requires no npm or build step — all dependencies are vendored ESM bundles.
+
 ```bash
 # Clone the repository
 git clone https://github.com/ironargondev/FeArKit
 cd ./FeArKit
 
-# Build the front-end
-cd ./web
-npm install
-npm run build-prod
+# Build client and server (using Docker)
+make client
+make server
 
-# Embed static resources
-cd ..
-go install github.com/rakyll/statik
-~/go/bin/statik -m -src="./web/dist" -f -dest="./server/embed" -p web -ns web
-
-# Build the client
-mkdir ./build
+# Or build locally (requires Go 1.22+, statik)
 go mod tidy
 go mod download
 ./scripts/build.client.sh
-# Build the server
-./scripts/build.server.sh
+./scripts/build.server.sh   # embeds web-vue3/ via statik, then builds the binary
+```
+
+### Frontend Development
+
+The frontend can be developed without rebuilding the binary. Build the server once, then use the `-dev` flag:
+
+```bash
+# Run with live frontend from filesystem (changes visible on browser refresh)
+./build/server/server_linux_amd64 -dev ./web-vue3 -salt yoursalt
 ```
 ---
 
@@ -131,7 +138,7 @@ go mod download
 
 FeArKit contains many third-party open-source projects.
 
-Lists of dependencies can be found at `go.mod` and `package.json`.
+Back-end dependencies are listed in `go.mod`. Front-end dependencies are vendored under `web-vue3/vendor/`.
 
 Some major dependencies are listed below.
 
@@ -153,15 +160,17 @@ Some major dependencies are listed below.
 
 ### Front-end
 
-* [React](https://github.com/facebook/react) (MIT License)
+* [Vue 3](https://github.com/vuejs/core) (MIT License)
 
-* [Ant-Design](https://github.com/ant-design/ant-design) (MIT License)
+* [Element Plus](https://github.com/element-plus/element-plus) (MIT License)
 
-* [axios](https://github.com/axios/axios) (MIT License)
+* [vue3-sfc-loader](https://github.com/FranckFreiburger/vue3-sfc-loader) (MIT License)
 
 * [xterm.js](https://github.com/xtermjs/xterm.js) (MIT License)
 
-* [crypto-js](https://github.com/brix/crypto-js) (MIT License)
+* [CodeMirror 6](https://github.com/codemirror/dev) (MIT License)
+
+* [zmodem.js](https://github.com/FranckFreiburger/zmodem.js) (MIT License)
 
 ### Acknowledgements
 

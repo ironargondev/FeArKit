@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"math/big"
 	"net/http"
@@ -30,6 +29,7 @@ var (
 	ErrTooLargeEntity = errors.New(`length of data can not excess buffer size`)
 )
 
+
 func CheckClient(ctx *gin.Context) {
 	var form struct {
 		OS     string `json:"os" yaml:"os" form:"os" binding:"required"`
@@ -43,7 +43,7 @@ func CheckClient(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, modules.Packet{Code: -1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`})
 		return
 	}
-	_, err := os.Stat(fmt.Sprintf(config.BuiltPath, form.OS, form.Arch))
+	_, err := os.Stat(config.BuiltClientPath(form.OS, form.Arch))
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusNotFound, modules.Packet{Code: 1, Msg: `${i18n|GENERATOR.NO_PREBUILT_FOUND}`})
 		return
@@ -80,7 +80,7 @@ func GenerateClient(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, modules.Packet{Code: -1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`})
 		return
 	}
-	tpl, err := os.Open(fmt.Sprintf(config.BuiltPath, form.OS, form.Arch))
+	tpl, err := os.Open(config.BuiltClientPath(form.OS, form.Arch))
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusNotFound, modules.Packet{Code: 1, Msg: `${i18n|GENERATOR.NO_PREBUILT_FOUND}`})
 		return
@@ -117,7 +117,7 @@ func GenerateClient(ctx *gin.Context) {
 	if form.OS == `windows` {
 		ctx.Header(`Content-Disposition`, `attachment; filename=client.exe; filename*=UTF-8''client.exe`)
 	} else {
-		ctx.Header(`Content-Disposition`, `attachment; filename=client; filename*=UTF-8''client`)
+		ctx.Header(`Content-Disposition`, `attachment; filename=client.elf; filename*=UTF-8''client.elf`)
 	}
 	// Find and replace plain buffer with encrypted configuration.
 	cfgBuffer := bytes.Repeat([]byte{'\x19'}, 384)

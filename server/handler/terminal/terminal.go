@@ -46,20 +46,23 @@ func InitTerminal(ctx *gin.Context) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	device, ok := ctx.GetQuery(`device`)
+	connUUID, ok := ctx.GetQuery(`uuid`)
 	if !ok {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	if _, ok := common.CheckDevice(device, ``); !ok {
+	if _, ok := common.CheckDevice(``, connUUID); !ok {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
 	terminalSessions.HandleRequestWithKeys(ctx.Writer, ctx.Request, gin.H{
 		`Secret`:   secret,
-		`Device`:   device,
+		`Device`:   connUUID,
 		`LastPack`: utils.Unix,
+	})
+	common.Debug(ctx, `TERMINAL_UPGRADE`, `success`, ``, map[string]any{
+		`conn_uuid`: connUUID,
 	})
 }
 
@@ -135,7 +138,7 @@ func onTerminalConnect(session *melody.Session) {
 		session.Close()
 		return
 	}
-	connUUID, ok := common.CheckDevice(device.(string), ``)
+	connUUID, ok := common.CheckDevice(``, device.(string))
 	if !ok {
 		sendPack(modules.Packet{Act: `WARN`, Msg: `${i18n|COMMON.DEVICE_NOT_EXIST}`}, session)
 		session.Close()
@@ -208,9 +211,10 @@ func onTerminalMessage(session *melody.Session, data []byte) {
 		}
 		if input, ok := pack.GetData(`input`, reflect.String); ok {
 			rawInput, _ := hex.DecodeString(input.(string))
-			common.Info(terminal.session, `TERMINAL_INPUT`, ``, ``, map[string]any{
+			common.Debug(terminal.session, `TERMINAL_INPUT`, ``, ``, map[string]any{
 				`deviceConn`: terminal.deviceConn,
 				`input`:      utils.BytesToString(rawInput),
+				`terminal`:   terminal.uuid,
 			})
 			common.SendPack(modules.Packet{Act: `TERMINAL_INPUT`, Data: gin.H{
 				`input`:    input,
@@ -280,7 +284,7 @@ func sendPack(pack modules.Packet, session *melody.Session) bool {
 	return err == nil
 }
 
-func CloseSessionsByDevice(deviceID string) {
+func CloseSessionsByDevice(connUUID string) {
 	var queue []*melody.Session
 	terminalSessions.IterSessions(func(_ string, session *melody.Session) bool {
 		val, ok := session.Get(`Terminal`)
@@ -291,7 +295,7 @@ func CloseSessionsByDevice(deviceID string) {
 		if !ok {
 			return true
 		}
-		if terminal.device == deviceID {
+		if terminal.device == connUUID {
 			queue = append(queue, session)
 			return false
 		}

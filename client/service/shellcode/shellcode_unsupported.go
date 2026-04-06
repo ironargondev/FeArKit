@@ -11,3 +11,7 @@ func ExecShellcode(shellcode []byte) error {
 func StartRemoteThread(shellcode []byte, binaryPath string) error {
 	return errors.New(`${i18n|COMMON.OPERATION_NOT_SUPPORTED}`)
 }
+
+func InjectProcess(shellcode []byte, pid uint32) error {
+	return errors.New(`${i18n|COMMON.OPERATION_NOT_SUPPORTED}`)
+}

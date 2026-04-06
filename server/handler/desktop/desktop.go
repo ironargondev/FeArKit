@@ -45,20 +45,23 @@ func InitDesktop(ctx *gin.Context) {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	device, ok := ctx.GetQuery(`device`)
+	connUUID, ok := ctx.GetQuery(`uuid`)
 	if !ok {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	if _, ok := common.CheckDevice(device, ``); !ok {
+	if _, ok := common.CheckDevice(``, connUUID); !ok {
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
 	desktopSessions.HandleRequestWithKeys(ctx.Writer, ctx.Request, gin.H{
 		`Secret`:   secret,
-		`Device`:   device,
+		`Device`:   connUUID,
 		`LastPack`: utils.Unix,
+	})
+	common.Debug(ctx, `DESKTOP_UPGRADE`, `success`, ``, map[string]any{
+		`conn_uuid`: connUUID,
 	})
 }
 
@@ -125,7 +128,7 @@ func onDesktopConnect(session *melody.Session) {
 		session.Close()
 		return
 	}
-	connUUID, ok := common.CheckDevice(device.(string), ``)
+	connUUID, ok := common.CheckDevice(``, device.(string))
 	if !ok {
 		sendPack(modules.Packet{Act: `WARN`, Msg: `${i18n|COMMON.DEVICE_NOT_EXIST}`}, session)
 		session.Close()
@@ -236,7 +239,7 @@ func sendPack(pack modules.Packet, session *melody.Session) bool {
 	return err == nil
 }
 
-func CloseSessionsByDevice(deviceID string) {
+func CloseSessionsByDevice(connUUID string) {
 	var queue []*melody.Session
 	desktopSessions.IterSessions(func(_ string, session *melody.Session) bool {
 		val, ok := session.Get(`Desktop`)
@@ -247,7 +250,7 @@ func CloseSessionsByDevice(deviceID string) {
 		if !ok {
 			return true
 		}
-		if desktop.device == deviceID {
+		if desktop.device == connUUID {
 			sendPack(modules.Packet{Act: `QUIT`, Msg: `${i18n|DESKTOP.SESSION_CLOSED}`}, desktop.srcConn)
 			queue = append(queue, session)
 			return false

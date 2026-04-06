@@ -57,7 +57,7 @@ func RemoveDeviceFiles(ctx *gin.Context) {
 // ListDeviceFiles will list files on remote client
 func ListDeviceFiles(ctx *gin.Context) {
 	var form struct {
-		Path string `json:"path" yaml:"path" form:"path" binding:"required"`
+		Path string `json:"path" yaml:"path" form:"path"`
 	}
 	target, ok := utility.CheckForm(ctx, &form)
 	if !ok {
@@ -299,22 +299,36 @@ func GetDeviceTextFile(ctx *gin.Context) {
 func UploadToDevice(ctx *gin.Context) {
 	var form struct {
 		Path string `json:"path" yaml:"path" form:"path" binding:"required"`
-		File string `json:"file" yaml:"file" form:"file" binding:"required"`
 	}
 	target, ok := utility.CheckForm(ctx, &form)
 	if !ok {
 		return
 	}
-	if len(form.File) == 0 || len(form.Path) == 0 {
+	fileHeader, err := ctx.FormFile(`file`)
+	if err != nil || fileHeader == nil || len(fileHeader.Filename) == 0 {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, modules.Packet{Code: -1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`})
 		return
 	}
+	fileName := fileHeader.Filename
+	if len(form.Path) == 0 {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, modules.Packet{Code: -1, Msg: `${i18n|COMMON.INVALID_PARAMETER}`})
+		return
+	}
+	// Open the file content and replace the request body so the bridge streams
+	// only the file bytes (not the full multipart envelope).
+	fileContent, err := fileHeader.Open()
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, modules.Packet{Code: 1, Msg: err.Error()})
+		return
+	}
+	ctx.Request.Body = fileContent
+	ctx.Request.ContentLength = fileHeader.Size
 	bridgeID := utils.GetStrUUID()
 	trigger := utils.GetStrUUID()
 	wait := make(chan bool)
 	called := false
 	response := false
-	fileDest := path.Join(form.Path, form.File)
+	fileDest := path.Join(form.Path, fileName)
 	fileSize := ctx.Request.ContentLength
 	common.AddEvent(func(p modules.Packet, _ *melody.Session) {
 		called = true
@@ -339,7 +353,7 @@ func UploadToDevice(ctx *gin.Context) {
 		dst.Header(`Accept-Ranges`, `none`)
 		dst.Header(`Content-Transfer-Encoding`, `binary`)
 		dst.Header(`Content-Type`, `application/octet-stream`)
-		dst.Header(`Content-Disposition`, fmt.Sprintf(`attachment; filename="%s"; filename*=UTF-8''%s`, form.File, url.PathEscape(form.File)))
+		dst.Header(`Content-Disposition`, fmt.Sprintf(`attachment; filename="%s"; filename*=UTF-8''%s`, fileName, url.PathEscape(fileName)))
 	}
 	instance.OnFinish = func(bridge *bridge.Bridge) {
 		if called {
@@ -352,7 +366,7 @@ func UploadToDevice(ctx *gin.Context) {
 	}
 	common.SendPackByUUID(modules.Packet{Act: `FILES_FETCH`, Data: gin.H{
 		`path`:   form.Path,
-		`file`:   form.File,
+		`file`:   fileName,
 		`bridge`: bridgeID,
 	}, Event: trigger}, target)
 	select {

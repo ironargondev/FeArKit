@@ -48,11 +48,17 @@ func main() {
 		handler.AuthHandler = checkAuth()
 		handler.InitRouter(appServer.Group(`/api`))
 		appServer.Any(`/ws`, wsHandshake)
-		appServer.NoRoute(handler.AuthHandler, func(ctx *gin.Context) {
-			if !serveGzip(ctx, webFS) && !checkCache(ctx, webFS) {
-				http.FileServer(webFS).ServeHTTP(ctx.Writer, ctx.Request)
-			}
-		})
+		if config.DevDir != `` {
+			appServer.NoRoute(handler.AuthHandler, func(ctx *gin.Context) {
+				http.FileServer(http.Dir(config.DevDir)).ServeHTTP(ctx.Writer, ctx.Request)
+			})
+		} else {
+			appServer.NoRoute(handler.AuthHandler, func(ctx *gin.Context) {
+				if !serveGzip(ctx, webFS) && !checkCache(ctx, webFS) {
+					http.FileServer(webFS).ServeHTTP(ctx.Writer, ctx.Request)
+				}
+			})
+		}
 	}
 
 	appListener := gin.New()
@@ -123,7 +129,7 @@ func main() {
 				clientErr = srvListener.ListenAndServe()
 			}
 			if clientErr != nil {
-				common.Fatal(nil, `LISTENER_INIT`, `fail`, err.Error(), nil)
+				common.Fatal(nil, `LISTENER_INIT`, `fail`, clientErr.Error(), nil)
 			}
 		}()
 		proto := "http"
@@ -177,11 +183,19 @@ func wsHandshake(ctx *gin.Context) {
 	clientUUID, _ := hex.DecodeString(ctx.GetHeader(`UUID`))
 	clientKey, _ := hex.DecodeString(ctx.GetHeader(`Key`))
 	if len(clientUUID) != 16 || len(clientKey) != 32 {
+		common.Debug(ctx, `WS_HANDSHAKE`, `fail`, `invalid UUID or Key header length`, map[string]any{
+			`uuid_len`: len(clientUUID),
+			`key_len`:  len(clientKey),
+		})
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 	decrypted, err := common.DecAES(clientKey, config.Config.SaltBytes)
 	if err != nil || !bytes.Equal(decrypted, clientUUID) {
+		common.Debug(ctx, `WS_HANDSHAKE`, `fail`, `key verification failed`, map[string]any{
+			`client_uuid`: hex.EncodeToString(clientUUID),
+			`remote`:      common.GetRemoteAddr(ctx),
+		})
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
@@ -193,9 +207,17 @@ func wsHandshake(ctx *gin.Context) {
 		`Address`:  common.GetRemoteAddr(ctx),
 	})
 	if err != nil {
+		common.Debug(ctx, `WS_HANDSHAKE`, `fail`, `WebSocket upgrade failed`, map[string]any{
+			`error`:       err.Error(),
+			`client_uuid`: hex.EncodeToString(clientUUID),
+		})
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
+	common.Debug(ctx, `WS_HANDSHAKE`, `success`, ``, map[string]any{
+		`client_uuid`: hex.EncodeToString(clientUUID),
+		`remote`:      common.GetRemoteAddr(ctx),
+	})
 }
 
 func wsOnConnect(session *melody.Session) {
@@ -258,28 +280,71 @@ func wsOnMessageBinary(session *melody.Session, data []byte) {
 		session.CloseWithMsg(melody.FormatCloseMessage(1001, `invalid device id`))
 		return
 	}
+	common.Debug(session, `CLIENT_PACKET`, ``, pack.Act, map[string]any{
+		`event_id`: pack.Event,
+	})
 	common.CallEvent(pack, session)
 	session.Set(`LastPack`, utils.Unix)
 }
 
 func wsOnDisconnect(session *melody.Session) {
-	if device, ok := common.Devices.Get(session.UUID); ok {
-		terminal.CloseSessionsByDevice(device.ID)
-		desktop.CloseSessionsByDevice(device.ID)
-		common.Info(nil, `CLIENT_OFFLINE`, ``, ``, map[string]any{
-			`device`: map[string]any{
-				`name`: device.Hostname,
-				`ip`:   device.WAN,
-			},
-		})
-	} else {
+	// If this session was intentionally closed because a newer session for the
+	// same device took over (see OnDevicePack), the Devices entry was already
+	// removed and replaced — nothing left to do here.
+	if v, _ := session.Get(`superseded`); v == true {
+		return
+	}
+
+	device, ok := common.Devices.Get(session.UUID)
+	if !ok {
+		// Session had no registered device (e.g. it never completed DEVICE_UP).
 		common.Info(nil, `CLIENT_OFFLINE`, ``, ``, map[string]any{
 			`device`: map[string]any{
 				`ip`: common.GetAddrIP(session.GetWSConn().UnderlyingConn().RemoteAddr()),
 			},
 		})
+		// Note: no device ID available here — session never completed DEVICE_UP.
+		common.Devices.Remove(session.UUID)
+		return
 	}
-	common.Devices.Remove(session.UUID)
+
+	// Close dependent sub-sessions immediately — they are tied to the transport.
+	terminal.CloseSessionsByDevice(session.UUID)
+	desktop.CloseSessionsByDevice(session.UUID)
+
+	// Instead of removing the device immediately, start a grace-period timer.
+	// If the client reconnects within ReconnectGracePeriod the pending cancel
+	// function is called from OnDevicePack, suppressing the offline event and
+	// keeping the UI row stable.
+	deviceID := device.ID
+	deviceCopy := *device
+	capturedUUID := session.UUID
+
+	// Cancel any previous pending-disconnect for this device (shouldn't happen,
+	// but guard against it anyway).
+	if prev, exists := common.PendingDisconnects.Pop(deviceID); exists {
+		prev()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	common.PendingDisconnects.Set(deviceID, cancel)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			// Client reconnected within the grace period — offline event suppressed.
+		case <-time.After(common.ReconnectGracePeriod):
+			common.PendingDisconnects.Remove(deviceID)
+			common.Devices.Remove(capturedUUID)
+			common.Info(nil, `CLIENT_OFFLINE`, ``, ``, map[string]any{
+				`device`: map[string]any{
+					`name`: deviceCopy.Hostname,
+					`ip`:   deviceCopy.WAN,
+					`id`:   deviceCopy.ID,
+				},
+			})
+		}
+	}()
 }
 
 func wsHealthCheck(container *melody.Melody) {
@@ -339,10 +404,19 @@ func pingDevice(s *melody.Session) {
 	trigger := utils.GetStrUUID()
 	common.SendPack(modules.Packet{Act: `PING`, Event: trigger}, s)
 	common.AddEventOnce(func(packet modules.Packet, session *melody.Session) {
+		latencyMs := (time.Now().UnixMilli() - t) / 2
 		device, ok := common.Devices.Get(s.UUID)
 		if ok {
-			device.Latency = uint(time.Now().UnixMilli()-t) / 2
+			device.Latency = uint(latencyMs)
 		}
+		common.Debug(s, `CLIENT_PACKET`, `success`, `PONG`, map[string]any{
+			`latency_ms`: latencyMs,
+		})
+		// Heartbeat goes to audit log at debug level only — use Audit() so it
+		// doesn't clutter the regular log but is recorded in the audit trail.
+		common.Audit(s, `debug`, `AGENT_HEARTBEAT`, `success`, ``, map[string]any{
+			`latency_ms`: latencyMs,
+		})
 	}, s.UUID, trigger, 3*time.Second)
 }
 
@@ -389,6 +463,9 @@ func checkAuth() gin.HandlerFunc {
 				lastRequest = now
 				tokens.Set(token, now)
 				passed = true
+				common.Debug(ctx, `AUTH_TOKEN`, `success`, ``, map[string]any{
+					`path`: ctx.Request.URL.Path,
+				})
 				return
 			}
 		}

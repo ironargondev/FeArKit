@@ -3,6 +3,7 @@
 package shellcode
 
 import (
+	"errors"
 	"syscall"
 	"unsafe"
 	"fmt"
@@ -42,6 +43,10 @@ func ExecShellcode(shellcode []byte) error{
 
 func StartRemoteThread(shellcode []byte, binaryPath string) error {
 	return ExecShellcode(shellcode)
+}
+
+func InjectProcess(shellcode []byte, pid uint32) error {
+	return errors.New(`${i18n|COMMON.OPERATION_NOT_SUPPORTED}`)
 }
 
 
